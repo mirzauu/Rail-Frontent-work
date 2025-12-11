@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ElementType } from "react";
 import { useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -268,6 +269,15 @@ const agentConversations: Record<string, Message[]> = {
   ],
 };
 
+const agentEmptyPrompts: Record<string, string> = {
+  cso: "How can I help you with security today?",
+  cfo: "How can I help you with finance today?",
+  coo: "How can I help you with operations today?",
+  cmo: "How can I help you with marketing today?",
+  cto: "How can I help you with technology today?",
+  chro: "How can I help you with people today?",
+};
+
 // AI Models
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
@@ -377,7 +387,7 @@ export default function Agents() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(false);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(!isMobile);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState("auto");
   const [selectedCapability, setSelectedCapability] = useState("auto");
   const [inputMessage, setInputMessage] = useState("");
@@ -387,7 +397,9 @@ export default function Agents() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isNewChat, setIsNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const queryClient = useQueryClient();
   const currentAgentKey = agentId || "cso";
   const currentAgentMeta = aiAgents[currentAgentKey];
   const { data: projectsData } = useQuery<ProjectItem[]>({
@@ -397,8 +409,15 @@ export default function Agents() {
       return r.json();
     },
   });
-  const renderedChatHistory = projectsData
-    ? projectsData.map((p, idx) => ({ title: p.name, projectId: p.id, hasMenu: false, isActive: (selectedProjectId ?? projectsData[0]?.id) === p.id }))
+  const sortedProjects = projectsData
+    ? [...projectsData].sort((a, b) => {
+        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bd - ad;
+      })
+    : undefined;
+  const renderedChatHistory = sortedProjects
+    ? sortedProjects.map((p) => ({ title: p.name, projectId: p.id, hasMenu: false, isActive: (selectedProjectId ?? sortedProjects[0]?.id) === p.id }))
     : (agentChatHistory[currentAgentKey] || agentChatHistory.cso).map((c, idx) => ({ title: c.title, projectId: "", hasMenu: c.hasMenu, isActive: idx === 0 }));
   const initialConversation = agentConversations[agentId || "cso"] || agentConversations.cso;
 
@@ -413,9 +432,10 @@ export default function Agents() {
 
   useEffect(() => {
     const loadInitial = async () => {
-      if (!projectsData || projectsData.length === 0) return;
+      if (!sortedProjects || sortedProjects.length === 0) return;
       if (messages.length > 0) return;
-      const firstId = selectedProjectId ?? projectsData[0].id;
+      if (isNewChat) return;
+      const firstId = selectedProjectId ?? sortedProjects[0].id;
       if (!selectedProjectId) setSelectedProjectId(firstId);
       const r = await api.fetch(`api/v1/conversations/history/${firstId}`);
       const d = await r.json();
@@ -447,7 +467,46 @@ export default function Agents() {
     setMessages([...messages, userMessage, assistantMessage]);
     setIsStreaming(true);
     try {
-      const defaultProjectId = selectedProjectId ?? projectsData?.[0]?.id ?? "default";
+      let projectId = selectedProjectId ?? null;
+      if (isNewChat && !projectId) {
+        const createBody = {
+          name: "string",
+          description: "string",
+          type: "single_chat",
+          status: "active",
+          settings: { additionalProp1: {} },
+          objective: "string",
+          tags: ["string"],
+          category: "string",
+          priority: "string",
+          agent_id: currentAgentMeta.id,
+        };
+        const resp = await api.fetch("api/v1/projects/", { method: "POST", body: JSON.stringify(createBody) });
+        const data: { id?: string; name?: string; created_at?: string } = await resp.json();
+        if (data?.id) {
+          projectId = data.id;
+          setSelectedProjectId(projectId);
+          const fullName = (data.name ?? "string") as string;
+          queryClient.setQueryData<ProjectItem[]>(["projects-by-agent", currentAgentMeta.id], (prev) => {
+            const base = Array.isArray(prev) ? prev : [];
+            const newItem: ProjectItem = { id: data.id as string, name: "", created_at: data.created_at };
+            return [newItem, ...base];
+          });
+          let i = 0;
+          const interval = setInterval(() => {
+            i++;
+            const partial = fullName.slice(0, i);
+            queryClient.setQueryData<ProjectItem[]>(["projects-by-agent", currentAgentMeta.id], (prev) => {
+              const base = Array.isArray(prev) ? prev : [];
+              return base.map((p) => (p.id === data.id ? { ...p, name: partial } : p));
+            });
+            if (i >= fullName.length) {
+              clearInterval(interval);
+            }
+          }, 40);
+        }
+      }
+      const defaultProjectId = projectId ?? projectsData?.[0]?.id ?? "default";
       const modelValue = selectedModel === "auto" ? "string" : selectedModel;
       const agentValue = selectedCapability === "auto" ? "string" : selectedCapability;
       const payload = {
@@ -463,6 +522,9 @@ export default function Agents() {
         if (!chunk || typeof chunk.response !== "string") return;
         setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || "") + chunk.response } : m)));
       });
+      if (isNewChat) {
+        setIsNewChat(false);
+      }
     } finally {
       setIsStreaming(false);
       setInputMessage("");
@@ -516,6 +578,12 @@ export default function Agents() {
             <Button
               variant="outline"
               className="w-full justify-start gap-2 h-9"
+              onClick={() => {
+                setIsNewChat(true);
+                setMessages([]);
+                setConversationId(null);
+                setSelectedProjectId(null);
+              }}
             >
               <Plus className="h-4 w-4" />
               New chat
@@ -625,7 +693,16 @@ export default function Agents() {
         <ScrollArea className="flex-1 p-6">
           <div className="max-w-4xl mx-auto space-y-6 pb-4">
             {/* Conversation Messages */}
-            {displayMessages.map((message) => {
+            {displayMessages.length === 0 ? (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {agentEmptyPrompts[currentAgent] || "How can I help you?"}
+                  </h3>
+                </div>
+              </div>
+            ) : (
+            displayMessages.map((message) => {
               if (message.type === "user") {
                 return (
                   <div key={message.id} className="flex justify-end items-start gap-3">
@@ -738,7 +815,7 @@ export default function Agents() {
                   </div>
                 );
               }
-            })}
+            }))}
             <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
@@ -1043,4 +1120,5 @@ export default function Agents() {
 interface ProjectItem {
   id: string;
   name: string;
+  created_at?: string;
 }
