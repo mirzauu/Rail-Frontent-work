@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SidePanel } from "@/components/shared/SidePanel";
@@ -28,14 +30,25 @@ import {
 import { Search, UserPlus, MoreHorizontal, Clock, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const users = [
-  { id: 1, name: "John Doe", email: "john@acmecorp.com", role: "Admin", status: "active" as const, lastSeen: "Now" },
-  { id: 2, name: "Sarah Miller", email: "sarah@acmecorp.com", role: "Developer", status: "active" as const, lastSeen: "5m ago" },
-  { id: 3, name: "Mike Chen", email: "mike@acmecorp.com", role: "Staff", status: "active" as const, lastSeen: "1h ago" },
-  { id: 4, name: "Emily Wang", email: "emily@acmecorp.com", role: "Staff", status: "active" as const, lastSeen: "2h ago" },
-  { id: 5, name: "Alex Johnson", email: "alex@acmecorp.com", role: "Developer", status: "pending" as const, lastSeen: "Invited" },
-  { id: 6, name: "Chris Lee", email: "chris@acmecorp.com", role: "Staff", status: "pending" as const, lastSeen: "Invited" },
-];
+type OrgUser = {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  timezone: string | null;
+  language: string | null;
+  status: string;
+  role: { id: string; name: string; display_name: string };
+  created_at: string;
+  last_login_at: string | null;
+};
+
+const allowedStatuses = ["active", "idle", "error", "connected", "pending"] as const;
+type AllowedStatus = typeof allowedStatuses[number];
+const normalizeStatus = (s: string | null | undefined): AllowedStatus => {
+  return allowedStatuses.includes((s ?? "") as AllowedStatus) ? ((s as AllowedStatus) ?? "pending") : "pending";
+};
 
 const roles = [
   { name: "Admin", description: "Full access to all features and settings", users: 1, permissions: ["manage_agents", "manage_knowledge", "manage_users", "configure_integrations", "view_analytics"] },
@@ -57,6 +70,13 @@ export default function Users() {
   const [activeTab, setActiveTab] = useState("users");
   const [selectedRole, setSelectedRole] = useState<typeof roles[0] | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const { data: orgUsers } = useQuery<OrgUser[]>({
+    queryKey: ["org-users"],
+    queryFn: async () => {
+      const r = await api.fetch("api/v1/organizations/users");
+      return r.json();
+    },
+  });
 
   return (
     <div className="animate-fade-in">
@@ -142,7 +162,7 @@ export default function Users() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
+                  {(orgUsers || []).map((user) => (
                     <tr
                       key={user.id}
                       className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
@@ -150,22 +170,22 @@ export default function Users() {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
-                            {user.name.split(" ").map((n) => n[0]).join("")}
+                            {(user.full_name || user.email || "").split(" ").map((n) => n[0]).join("")}
                           </div>
-                          <span className="font-medium text-foreground">{user.name}</span>
+                          <span className="font-medium text-foreground">{user.full_name || user.email}</span>
                         </div>
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
                       <td className="p-4">
-                        <Badge variant="outline">{user.role}</Badge>
+                        <Badge variant="outline">{user.role?.display_name || user.role?.name}</Badge>
                       </td>
                       <td className="p-4">
-                        <StatusBadge status={user.status} />
+                        <StatusBadge status={normalizeStatus(user.status)} />
                       </td>
                       <td className="p-4 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {user.lastSeen}
+                          {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}
                         </div>
                       </td>
                       <td className="p-4 text-right">

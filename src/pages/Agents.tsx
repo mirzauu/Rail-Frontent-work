@@ -948,7 +948,7 @@ export default function Agents() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="ghost"
+                        variant="ghost" 
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
                       >
