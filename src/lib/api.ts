@@ -112,6 +112,31 @@ export class ApiClient {
       }
     }
   }
+
+  async uploadDocument(
+    file: File,
+    opts: { title?: string; description?: string; scope?: string; category?: string; tags?: string }
+  ): Promise<Response> {
+    const url = this.baseUrl + "api/v1/documents/upload";
+    const fd = new FormData();
+    fd.append("file", file);
+    if (opts?.title !== undefined) fd.append("title", opts.title ?? "");
+    if (opts?.description !== undefined) fd.append("description", opts.description ?? "");
+    if (opts?.scope !== undefined) fd.append("scope", opts.scope ?? "");
+    if (opts?.category !== undefined) fd.append("category", opts.category ?? "");
+    if (opts?.tags !== undefined) fd.append("tags", opts.tags ?? "");
+
+    const headers: Record<string, string> = {};
+    const token = this.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const resp = await fetch(url, { method: "POST", headers, body: fd });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      throw new Error(text || `HTTP ${resp.status}`);
+    }
+    return resp;
+  }
 }
 
 export const api = new ApiClient(BASE_URL);

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SidePanel } from "@/components/shared/SidePanel";
 import { Button } from "@/components/ui/button";
@@ -7,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -29,14 +32,27 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const documents = [
-  { id: 1, title: "Q4 Strategy Deck", type: "pdf", tags: ["Strategy", "Q4"], scope: "Global", source: "Manual", updated: "Today", owner: "John Doe" },
-  { id: 2, title: "Budget Forecast 2024", type: "spreadsheet", tags: ["Finance", "Budget"], scope: "CFO", source: "GDrive", updated: "Yesterday", owner: "Sarah Miller" },
-  { id: 3, title: "Operations Playbook v2", type: "doc", tags: ["Operations", "Process"], scope: "COO", source: "Manual", updated: "2 days ago", owner: "Mike Chen" },
-  { id: 4, title: "Marketing Campaign Brief", type: "pdf", tags: ["Marketing", "Campaign"], scope: "CMO", source: "Slack", updated: "3 days ago", owner: "Emily Wang" },
-  { id: 5, title: "Technical Architecture Overview", type: "doc", tags: ["Tech", "Architecture"], scope: "CTO", source: "GDrive", updated: "1 week ago", owner: "Alex Johnson" },
-  { id: 6, title: "Company Policies 2024", type: "pdf", tags: ["HR", "Policy"], scope: "Global", source: "Manual", updated: "2 weeks ago", owner: "HR Team" },
-];
+type DocumentItem = {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  uploaded_by: string;
+  filename: string;
+  original_filename: string;
+  file_type: string; // e.g., "txt", "pdf", "docx"
+  mime_type: string | null;
+  file_size_bytes: number;
+  storage_path: string;
+  storage_backend: string; // e.g., "local", "s3"
+  status: string; // e.g., "uploaded"
+  title: string | null;
+  description: string | null;
+  scope: string; // e.g., "organization"
+  assigned_agent_ids: string[];
+  category: string | null;
+  tags: string[];
+  created_at: string;
+};
 
 const folders = [
   { name: "All Documents", count: 342, icon: FileText },
@@ -52,15 +68,30 @@ const tagGroups = [
   { name: "HR", count: 31 },
 ];
 
-const typeIcons = {
-  pdf: <File className="h-4 w-4 text-destructive" />,
-  doc: <FileText className="h-4 w-4 text-primary" />,
-  spreadsheet: <FileText className="h-4 w-4 text-success" />,
+const getTypeIcon = (fileType: string) => {
+  const t = (fileType || "").toLowerCase();
+  if (t === "pdf") return <File className="h-4 w-4 text-destructive" />;
+  if (["doc", "docx", "txt", "md"].includes(t)) return <FileText className="h-4 w-4 text-primary" />;
+  if (["xls", "xlsx", "csv"].includes(t)) return <FileText className="h-4 w-4 text-success" />;
+  return <File className="h-4 w-4 text-muted-foreground" />;
 };
 
 export default function Knowledge() {
-  const [selectedDoc, setSelectedDoc] = useState<typeof documents[0] | null>(null);
+  const { data: docs } = useQuery<DocumentItem[]>({
+    queryKey: ["documents"],
+    queryFn: async () => {
+      const r = await api.fetch("api/v1/documents/");
+      return r.json();
+    },
+  });
+  const queryClient = useQueryClient();
+  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [activeFolder, setActiveFolder] = useState("All Documents");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadScope, setUploadScope] = useState("organization");
+  const [uploading, setUploading] = useState(false);
 
   return (
     <div className="animate-fade-in">
@@ -73,7 +104,7 @@ export default function Knowledge() {
               <Link2 className="mr-2 h-4 w-4" />
               Connect Source
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Upload
             </Button>
@@ -86,6 +117,63 @@ export default function Knowledge() {
       />
 
       <div className="flex gap-6 h-[calc(100vh-12rem)]">
+        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>File</Label>
+                <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} placeholder="Optional title" />
+              </div>
+              <div className="space-y-2">
+                <Label>Scope</Label>
+                <Select value={uploadScope} onValueChange={setUploadScope}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="organization">Organization</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  if (!uploadFile || uploading) return;
+                  setUploading(true);
+                  try {
+                    const resp = await api.uploadDocument(uploadFile, {
+                      title: uploadTitle,
+                      scope: uploadScope,
+                      description: "",
+                      category: "",
+                      tags: "",
+                    });
+                    await resp.json();
+                    setUploadOpen(false);
+                    setUploadFile(null);
+                    setUploadTitle("");
+                    queryClient.invalidateQueries({ queryKey: ["documents"] });
+                  } finally {
+                    setUploading(false);
+                  }
+                }}
+                disabled={!uploadFile || uploading}
+              >
+                {uploading ? "Uploading..." : "Upload"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Left Sidebar - Filters */}
         <Card className="w-60 flex-shrink-0 overflow-hidden flex flex-col">
           <CardContent className="p-4 flex-1 overflow-auto scrollbar-thin">
@@ -158,7 +246,7 @@ export default function Knowledge() {
                 </tr>
               </thead>
               <tbody>
-                {documents.map((doc) => (
+                {(docs || []).map((doc) => (
                   <tr
                     key={doc.id}
                     onClick={() => setSelectedDoc(doc)}
@@ -166,13 +254,13 @@ export default function Knowledge() {
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
-                        {typeIcons[doc.type as keyof typeof typeIcons]}
-                        <span className="font-medium text-foreground">{doc.title}</span>
+                        {getTypeIcon(doc.file_type)}
+                        <span className="font-medium text-foreground">{doc.title || doc.original_filename || doc.filename}</span>
                       </div>
                     </td>
                     <td className="p-4">
                       <div className="flex gap-1.5 flex-wrap">
-                        {doc.tags.map((tag) => (
+                        {(doc.tags || []).map((tag) => (
                           <span
                             key={tag}
                             className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
@@ -183,16 +271,14 @@ export default function Knowledge() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <Badge variant={doc.scope === "Global" ? "default" : "outline"}>
-                        {doc.scope}
-                      </Badge>
+                      <Badge variant="outline">{doc.scope}</Badge>
                     </td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.source}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.owner}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{doc.storage_backend}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{doc.uploaded_by || "—"}</td>
                     <td className="p-4 text-right text-sm text-muted-foreground">
                       <div className="flex items-center justify-end gap-1">
                         <Clock className="h-3 w-3" />
-                        {doc.updated}
+                        {new Date(doc.created_at).toLocaleString()}
                       </div>
                     </td>
                   </tr>
@@ -208,7 +294,7 @@ export default function Knowledge() {
         isOpen={!!selectedDoc}
         onClose={() => setSelectedDoc(null)}
         title={selectedDoc?.title || ""}
-        subtitle={`${selectedDoc?.type.toUpperCase()} • Last updated ${selectedDoc?.updated}`}
+        subtitle={`${(selectedDoc?.file_type || "").toUpperCase()} • Created ${selectedDoc ? new Date(selectedDoc.created_at).toLocaleString() : ""}`}
         width="lg"
       >
         {selectedDoc && (
@@ -216,7 +302,7 @@ export default function Knowledge() {
             {/* Preview placeholder */}
             <div className="aspect-[4/3] rounded-lg border border-border bg-muted/50 flex items-center justify-center">
               <div className="text-center">
-                {typeIcons[selectedDoc.type as keyof typeof typeIcons]}
+                {getTypeIcon(selectedDoc.file_type)}
                 <p className="mt-2 text-sm text-muted-foreground">Document Preview</p>
               </div>
             </div>
@@ -232,7 +318,7 @@ export default function Knowledge() {
                     Global Memory
                   </Label>
                 </div>
-                <Switch id="global-toggle" defaultChecked={selectedDoc.scope === "Global"} />
+                <Switch id="global-toggle" defaultChecked={selectedDoc.scope === "organization"} />
               </div>
 
               <div>
@@ -260,7 +346,7 @@ export default function Knowledge() {
             <div className="space-y-3 border-t border-border pt-4">
               <Label className="text-sm">Tags</Label>
               <div className="flex flex-wrap gap-2">
-                {selectedDoc.tags.map((tag) => (
+                {(selectedDoc.tags || []).map((tag) => (
                   <span
                     key={tag}
                     className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground"
@@ -278,8 +364,8 @@ export default function Knowledge() {
             <div className="space-y-3 border-t border-border pt-4">
               <h4 className="text-sm font-medium text-foreground">Activity</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>Ingested: {selectedDoc.updated}</p>
-                <p>Last indexed: {selectedDoc.updated}</p>
+                <p>Ingested: {new Date(selectedDoc.created_at).toLocaleString()}</p>
+                <p>Last indexed: {new Date(selectedDoc.created_at).toLocaleString()}</p>
                 <p>Sync status: Active</p>
               </div>
             </div>
