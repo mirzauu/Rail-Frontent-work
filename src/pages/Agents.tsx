@@ -44,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { ChatBubble } from "@/components/shared/ChatBubble";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -691,7 +692,7 @@ export default function Agents() {
 
         {/* Chat Content */}
         <ScrollArea className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto space-y-6 pb-4">
+          <div className="max-w-[95%] mx-auto space-y-6 pb-4">
             {/* Conversation Messages */}
             {displayMessages.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
@@ -705,19 +706,13 @@ export default function Agents() {
             displayMessages.map((message) => {
               if (message.type === "user") {
                 return (
-                  <div key={message.id} className="flex justify-end items-start gap-3">
-                    <div className="flex flex-col items-end max-w-[70%]">
-                      <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-tr-sm">
-                        <p className="text-sm leading-relaxed">{message.content}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-1">{message.time}</span>
-                    </div>
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        You
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
+                  <ChatBubble
+                    key={message.id}
+                    role="user"
+                    content={message.content}
+                    timestamp={message.time}
+                    name="You"
+                  />
                 );
               } else {
                 const agent = aiAgents[message.agent as keyof typeof aiAgents];
@@ -731,11 +726,6 @@ export default function Agents() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col flex-1 max-w-[85%]">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-foreground">{agent.name}</span>
-                        <span className={cn("text-xs font-medium", agent.textColor)}>{agent.role}</span>
-                      </div>
-
                       {/* Reasoning Panel */}
                       {message.reasoning && message.reasoning.length > 0 && (
                         <div className="mb-2">
@@ -807,10 +797,12 @@ export default function Agents() {
                         </div>
                       )}
 
-                      <div className="bg-muted/50 border border-border/50 px-4 py-3 rounded-2xl rounded-tl-sm">
-                        <p className="text-sm leading-relaxed text-foreground/90">{message.content}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground mt-1">{message.time}</span>
+                      <ChatBubble
+                        role="assistant"
+                        content={message.content}
+                        timestamp={message.time}
+                        name={agent.name}
+                      />
                     </div>
                   </div>
                 );
@@ -822,7 +814,7 @@ export default function Agents() {
 
         {/* Input Area */}
         <div className="p-4 bg-[#fefcf8] dark:bg-background">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-[95%] mx-auto">
             <div className="bg-[#f8fafc] dark:bg-muted/50 border border-border rounded-xl overflow-hidden">
               {/* Input Field */}
               <div className="px-4 pt-3">

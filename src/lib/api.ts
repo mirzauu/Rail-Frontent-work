@@ -1,4 +1,4 @@
-const BASE_URL = "http://127.0.0.1:8001/";
+const BASE_URL = "http://127.0.0.1:8000/";
 const TOKEN_KEY = "access_token";
 const USER_KEY = "user";
 
