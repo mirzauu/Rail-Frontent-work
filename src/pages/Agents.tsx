@@ -471,15 +471,15 @@ export default function Agents() {
       let projectId = selectedProjectId ?? null;
       if (isNewChat && !projectId) {
         const createBody = {
-          name: "string",
-          description: "string",
+          name: inputMessage.slice(0, 50),
+          description: inputMessage,
           type: "single_chat",
           status: "active",
           settings: { additionalProp1: {} },
-          objective: "string",
-          tags: ["string"],
-          category: "string",
-          priority: "string",
+          objective: inputMessage,
+          tags: ["general"],
+          category: "general",
+          priority: "medium",
           agent_id: currentAgentMeta.id,
         };
         const resp = await api.fetch("api/v1/projects/", { method: "POST", body: JSON.stringify(createBody) });
@@ -539,8 +539,19 @@ export default function Agents() {
     }
   };
 
+  const isComingSoon = currentAgentKey !== "cso";
+
   return (
-    <div className="flex h-full w-full bg-background overflow-hidden border-t border-border">
+    <div className="flex h-full w-full bg-background overflow-hidden border-t border-border relative">
+      {isComingSoon && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+          <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
+            <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Coming Soon
+            </span>
+          </div>
+        </div>
+      )}
       {/* Left Sidebar - Chat History */}
       <div
         className={cn(

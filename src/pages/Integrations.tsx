@@ -104,7 +104,16 @@ export default function Integrations() {
   const [selectedIntegration, setSelectedIntegration] = useState<typeof integrations[0] | null>(null);
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in relative min-h-[calc(100vh-4rem)]">
+      {/* Coming Soon Overlay */}
+      <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+        <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
+          <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+            Coming Soon
+          </span>
+        </div>
+      </div>
+
       <PageHeader
         title="Integrations"
         description="Connect external services to enhance your agents"

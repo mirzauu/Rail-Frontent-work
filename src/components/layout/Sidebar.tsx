@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   Bot,
@@ -10,11 +10,26 @@ import {
   ChevronLeft,
   Train,
   Cog,
+  ChevronDown,
+  Sun,
+  Moon,
+  LogOut,
+  User,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "next-themes";
+import { api } from "@/lib/api";
 
 const agents = [
   { id: "cso", name: "Michael", role: "CSO", letter: "M" },
@@ -40,6 +55,24 @@ export function Sidebar() {
 
   const [collapsed, setCollapsed] = useState(isMobile);
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
+  const user = api.getUser();
+  const initials = user?.full_name
+    ? user.full_name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0]?.toUpperCase())
+        .join("")
+    : "US";
+
+  const handleLogout = () => {
+    api.clearToken();
+    api.clearUser();
+    sessionStorage.clear();
+    navigate("/login");
+  };
 
   return (
     <aside
@@ -216,25 +249,76 @@ export function Sidebar() {
         )}
       </nav>
 
-      {/* Collapse button */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            "w-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/70 dark:hover:bg-gray-700/50",
-            collapsed ? "justify-center" : "justify-start"
-          )}
-        >
-          <ChevronLeft
-            className={cn(
-              "h-4 w-4 transition-transform duration-300",
-              collapsed && "rotate-180"
-            )}
-          />
-          {!collapsed && <span className="ml-2 text-sm">Collapse</span>}
-        </Button>
+      {/* User Profile */}
+      <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                "w-full flex items-center gap-3 transition-all duration-200 hover:bg-gray-200/70 dark:hover:bg-gray-700/50",
+                collapsed ? "justify-center px-2" : "justify-start px-3 py-6"
+              )}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.avatar_url ?? ""} />
+                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <>
+                  <div className="flex flex-col items-start text-sm overflow-hidden">
+                    <span className="font-medium truncate w-[140px] text-left">
+                      {user?.full_name ?? "User"}
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate w-[140px] text-left">
+                      {user?.email ?? ""}
+                    </span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 ml-auto text-muted-foreground" />
+                </>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="right" className="w-56 mb-2">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              Preferences
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="cursor-pointer"
+            >
+              {theme === "dark" ? (
+                <>
+                  <Sun className="h-4 w-4 mr-2" />
+                  Light Mode
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4 mr-2" />
+                  Dark Mode
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive cursor-pointer"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );
