@@ -513,7 +513,7 @@ export default function Agents() {
       const payload = {
         query: inputMessage,
         project_id: defaultProjectId,
-        framework: "pydantic",
+        framework: currentAgentKey,
         model: modelValue,
         agent: agentValue,
         attachment: "",

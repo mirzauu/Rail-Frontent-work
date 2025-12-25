@@ -131,6 +131,8 @@ export function ChatBubble({ content, role, avatar, name, timestamp }: ChatBubbl
   const processedContent = normalizeTables(content
     .replace(/\r\n/g, "\n")
     .replace(/\n/g, "\n")
+    // Fix: Handle escaped bold markers which might cause **Text** to appear literally
+    .replace(/\\\*\\\*/g, "**")
     // Ensure headers have a blank line before them
     .replace(/([^\n])\n?(#+\s)/g, "$1\n\n$2")
     // Ensure lists have a blank line before them
@@ -169,6 +171,13 @@ export function ChatBubble({ content, role, avatar, name, timestamp }: ChatBubbl
             remarkPlugins={[remarkGfm]}
             components={{
               // Override specific elements if needed
+              strong({ children, ...props }) {
+                return (
+                  <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
+                    {children}
+                  </strong>
+                );
+              },
               code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
                 return !inline ? (
                   <div className="bg-background/50 rounded-md p-3 my-2 overflow-x-auto border border-border/50">
