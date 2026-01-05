@@ -63,7 +63,7 @@ import {
 const aiAgents: Record<string, { id: string; name: string; role: string; icon: ElementType; color: string; textColor: string }> = {
   cso: {
     id: "cca83ff0-e54a-4bf2-a772-c884b53cd637",
-    name: "Michael Chen",
+    name: "Michael",
     role: "CSO",
     icon: Shield,
     color: "bg-red-500",
@@ -597,14 +597,6 @@ export default function Agents() {
         <div className="flex-1 overflow-hidden flex flex-col min-w-[280px]">
           {/* Search Bar */}
           <div className="p-3 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search"
-                className="pl-9 bg-background border-border h-9"
-              />
-            </div>
-
             {/* New Chat Button */}
             <Button
               variant="outline"
@@ -701,12 +693,6 @@ export default function Agents() {
             <Info className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <SlidersHorizontal className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
             {!isRightSidebarOpen && (
               <Button
                 variant="ghost"
@@ -722,7 +708,7 @@ export default function Agents() {
 
         {/* Chat Content */}
         <ScrollArea className="flex-1 p-6">
-          <div className="max-w-[95%] mx-auto space-y-6 pb-4">
+          <div className="max-w-[95%] mx-auto space-y-6 pb-32">
             {/* Conversation Messages */}
             {displayMessages.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
@@ -843,9 +829,9 @@ export default function Agents() {
         </ScrollArea>
 
         {/* Input Area */}
-        <div className="p-4 bg-[#fefcf8] dark:bg-background">
+        <div className="absolute bottom-0 w-full p-4 bg-background/20 backdrop-blur-lg z-10">
           <div className="max-w-[95%] mx-auto">
-            <div className="bg-[#f8fafc] dark:bg-muted/50 border border-border rounded-xl overflow-hidden">
+            <div className="bg-[#f8fafc]/80 dark:bg-muted/50 border border-border rounded-xl overflow-hidden shadow-sm">
               {/* Input Field */}
               <div className="px-4 pt-3">
                 <input
@@ -982,20 +968,7 @@ export default function Agents() {
                     </TooltipContent>
                   </Tooltip>
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                      >
-                        <Mic className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Voice Input</p>
-                    </TooltipContent>
-                  </Tooltip>
+
 
                   <Tooltip>
                     <TooltipTrigger asChild>

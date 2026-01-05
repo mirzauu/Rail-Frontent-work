@@ -19,6 +19,8 @@ import {
   faUsers
 } from "@fortawesome/free-solid-svg-icons";
 import { cn } from "@/lib/utils";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 
 const agents = [
   { name: "CSO Agent", role: "Chief Strategy Officer", status: "active", lastMessage: "Completed market analysis for Q4", time: "2m ago", initials: "CS" },
@@ -40,13 +42,51 @@ const memoryHighlights = [
   { agent: "COO", content: "Task completed: Supply chain audit", type: "task", date: "Dec 1, 10:00 AM" },
 ];
 
+const activityData = [
+  { day: "Mon", conversations: 120, tasks: 45 },
+  { day: "Tue", conversations: 150, tasks: 52 },
+  { day: "Wed", conversations: 180, tasks: 61 },
+  { day: "Thu", conversations: 140, tasks: 55 },
+  { day: "Fri", conversations: 160, tasks: 58 },
+  { day: "Sat", conversations: 90, tasks: 35 },
+  { day: "Sun", conversations: 70, tasks: 25 },
+];
+
+const activityConfig = {
+  conversations: {
+    label: "Conversations",
+    color: "hsl(var(--primary))",
+  },
+  tasks: {
+    label: "Tasks",
+    color: "hsl(var(--muted-foreground))",
+  },
+} satisfies ChartConfig;
+
+const performanceData = [
+  { time: "09:00", cso: 85, cfo: 92, coo: 78, cmo: 88 },
+  { time: "10:00", cso: 88, cfo: 94, coo: 82, cmo: 90 },
+  { time: "11:00", cso: 92, cfo: 91, coo: 85, cmo: 87 },
+  { time: "12:00", cso: 90, cfo: 89, coo: 88, cmo: 85 },
+  { time: "13:00", cso: 85, cfo: 95, coo: 80, cmo: 88 },
+  { time: "14:00", cso: 89, cfo: 93, coo: 84, cmo: 92 },
+];
+
+const performanceConfig = {
+  cso: { label: "CSO", color: "#ef4444" },
+  cfo: { label: "CFO", color: "#f97316" },
+  coo: { label: "COO", color: "#a855f7" },
+  cmo: { label: "CMO", color: "#3b82f6" },
+} satisfies ChartConfig;
+
+
 export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
     <div className="animate-fade-in p-2 space-y-6 relative min-h-[calc(100vh-4rem)]">
       {/* Coming Soon Overlay */}
-      <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+      <div className="absolute inset-0 z-50 flex items-start justify-center pt-56 bg-background/50 backdrop-blur-[1px]">
         <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
           <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Coming Soon
@@ -102,6 +142,89 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Analytics Charts */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        {/* Weekly Activity Chart */}
+        <Card className="col-span-1 lg:col-span-4 border-border/60 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Weekly Activity</CardTitle>
+            <CardDescription>Conversations and tasks completed over the last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-0">
+            <ChartContainer config={activityConfig} className="h-[250px] w-full">
+              <BarChart data={activityData}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                />
+                <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
+                <Bar dataKey="conversations" fill="var(--color-conversations)" radius={[4, 4, 0, 0]} barSize={30} />
+                <Bar dataKey="tasks" fill="var(--color-tasks)" radius={[4, 4, 0, 0]} barSize={30} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Agent Performance Chart */}
+        <Card className="col-span-1 lg:col-span-3 border-border/60 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Agent Performance</CardTitle>
+            <CardDescription>Real-time performance metrics (0-100)</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-0">
+            <ChartContainer config={performanceConfig} className="h-[250px] w-full">
+              <AreaChart data={performanceData}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area
+                  type="monotone"
+                  dataKey="cso"
+                  stackId="1"
+                  stroke="var(--color-cso)"
+                  fill="var(--color-cso)"
+                  fillOpacity={0.2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cfo"
+                  stackId="1"
+                  stroke="var(--color-cfo)"
+                  fill="var(--color-cfo)"
+                  fillOpacity={0.2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="coo"
+                  stackId="1"
+                  stroke="var(--color-coo)"
+                  fill="var(--color-coo)"
+                  fillOpacity={0.2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="cmo"
+                  stackId="1"
+                  stroke="var(--color-cmo)"
+                  fill="var(--color-cmo)"
+                  fillOpacity={0.2}
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content Grid - Bento Box Style */}

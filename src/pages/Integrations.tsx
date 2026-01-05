@@ -61,6 +61,12 @@ const JiraLogo = () => (
   </svg>
 );
 
+const WhatsAppLogo = () => (
+  <svg viewBox="0 0 32 32" className="h-8 w-8">
+    <path d="M16 2a13 13 0 0 0-11.2 20.3L3 29.5l7.6-2c3.4 1.9 7.3 1.9 10.7 0a13 13 0 0 0 5.4-17.5A13 13 0 0 0 16 2zm0 24a11 11 0 0 1-5.6-1.5l-.4-.2-4.1 1.1 1.1-4-.2-.4A11 11 0 1 1 16 26zm6-8.2c-.3-.2-1.9-1-2.2-1.1-.3-.1-.5-.1-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7 0a8.8 8.8 0 0 1-2.6-1.6 9.7 9.7 0 0 1-1.8-2.2c-.2-.3 0-.5.2-.6l.5-.7a3.5 3.5 0 0 0 .4-.6c.1-.2 0-.4 0-.6-.2-.1-1.8-4.3-2.5-5.9-.6-1.4-1.2-1.2-1.7-1.2H9c-.5 0-1.3.2-2 .9s-2.6 2.5-2.6 6.1c0 3.6 2.6 7.1 3 7.6s5.2 7.9 12.6 11.1c5.1 2.2 6.1 1.8 7.2 1.7 1.1-.1 3.5-1.4 4-2.8.5-1.3.5-2.5.3-2.8-.2-.2-.7-.4-1-.6z" fill="#25D366"/>
+  </svg>
+);
+
 const integrations = [
   {
     id: "google-drive",
@@ -94,6 +100,15 @@ const integrations = [
     name: "Jira",
     description: "Connect to Jira for project and issue tracking integration",
     logo: JiraLogo,
+    status: "idle" as const,
+    connected: false,
+    comingSoon: true,
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp",
+    description: "Connect agents to WhatsApp Business API for customer support",
+    logo: WhatsAppLogo,
     status: "idle" as const,
     connected: false,
     comingSoon: true,
