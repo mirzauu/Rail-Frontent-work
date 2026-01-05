@@ -400,6 +400,7 @@ export default function Agents() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isNewChat, setIsNewChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const leftSidebarRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const currentAgentKey = agentId || "cso";
   const currentAgentMeta = aiAgents[currentAgentKey];
@@ -430,6 +431,23 @@ export default function Agents() {
 
   // Get the conversation to display (initial + new messages)
   const displayMessages = messages;
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isLeftSidebarOpen &&
+        leftSidebarRef.current &&
+        !leftSidebarRef.current.contains(event.target as Node)
+      ) {
+        setIsLeftSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isLeftSidebarOpen]);
 
   useEffect(() => {
     const loadInitial = async () => {
@@ -554,6 +572,7 @@ export default function Agents() {
       )}
       {/* Left Sidebar - Chat History */}
       <div
+        ref={leftSidebarRef}
         className={cn(
           "flex flex-col border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
           isLeftSidebarOpen
@@ -1026,7 +1045,15 @@ export default function Agents() {
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 p-4 min-w-[300px]">
+        <div className="flex-1 relative overflow-hidden">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+            <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
+              <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                Coming Soon
+              </span>
+            </div>
+          </div>
+          <ScrollArea className="h-full p-4 min-w-[300px]">
           <div className="space-y-6">
             {/* Context Note */}
             <div className="bg-secondary/30 rounded-lg p-3 text-sm text-foreground/80 leading-relaxed">
@@ -1115,7 +1142,8 @@ export default function Agents() {
               </div>
             </div>
           </div>
-        </ScrollArea>
+          </ScrollArea>
+        </div>
       </div>
     </div>
   );
