@@ -71,7 +71,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   cfo: {
     id: "9b1d9d6f-1e3a-4aaf-9d8a-0f6a6a1c9b12",
-    name: "Elena Rodriguez",
+    name: "Elena ",
     role: "CFO",
     icon: DollarSign,
     color: "bg-orange-500",
@@ -79,7 +79,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   coo: {
     id: "5c2e8f3a-7dbe-4f9b-b1a2-3a9e4d6f8c21",
-    name: "David Kumar",
+    name: "David ",
     role: "COO",
     icon: Settings,
     color: "bg-purple-500",
@@ -87,7 +87,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   chro: {
     id: "2a7c1b9e-4d3f-4e2a-9f8b-7e6c5d4a3b2c",
-    name: "Amelia Foster",
+    name: "Amelia ",
     role: "CHRO",
     icon: Users,
     color: "bg-pink-500",
@@ -95,7 +95,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   cmo: {
     id: "8f3d2a1b-9c7e-4b5a-8d1f-2e3c4b5a6d7e",
-    name: "Sarah Chen",
+    name: "Sarah ",
     role: "CMO",
     icon: TrendingUp,
     color: "bg-blue-500",
@@ -103,7 +103,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   cto: {
     id: "1e2d3c4b-5a6f-7e8d-9c0b-1a2f3e4d5c6b",
-    name: "Marcus Johnson",
+    name: "Marcus ",
     role: "CTO",
     icon: Code,
     color: "bg-green-500",
