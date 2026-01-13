@@ -272,12 +272,12 @@ const agentConversations: Record<string, Message[]> = {
 };
 
 const agentEmptyPrompts: Record<string, string> = {
-  cso: "How can I help you with security today?",
-  cfo: "How can I help you with finance today?",
-  coo: "How can I help you with operations today?",
-  cmo: "How can I help you with marketing today?",
-  cto: "How can I help you with technology today?",
-  chro: "How can I help you with people today?",
+  cso: "How can I help you today?",
+  cfo: "How can I help you today?",
+  coo: "How can I help you today?",
+  cmo: "How can I help you today?",
+  cto: "How can I help you today?",
+  chro: "How can I help you today?",
 };
 
 // AI Models
@@ -406,6 +406,10 @@ export default function Agents() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const leftSidebarRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const currentUser = api.getUser();
+  const userName = currentUser?.full_name?.trim()
+    ? currentUser.full_name.trim().split(/\s+/)[0]
+    : "there";
   const currentAgentKey = agentId || "cso";
   const currentAgentMeta = aiAgents[currentAgentKey];
   const { data: projectsData } = useQuery<ProjectItem[]>({
@@ -792,7 +796,7 @@ export default function Agents() {
               <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-foreground">
-                    {agentEmptyPrompts[currentAgent] || "How can I help you?"}
+                    {`Hi ${userName}, ${agentEmptyPrompts[currentAgent] || "How can I help you?"}`}
                   </h3>
                 </div>
               </div>

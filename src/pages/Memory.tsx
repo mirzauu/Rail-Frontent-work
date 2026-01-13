@@ -73,162 +73,170 @@ export default function Memory() {
       />
 
       {viewMode === "list" ? (
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="per-agent">Per Agent</TabsTrigger>
-          <TabsTrigger value="global">Global / Org</TabsTrigger>
-        </TabsList>
+        <div className="relative">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="per-agent">Per Agent</TabsTrigger>
+              <TabsTrigger value="global">Global / Org</TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="per-agent" className="space-y-4">
-          {/* Filter Bar */}
-          <Card className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search memories..." className="pl-9" />
-              </div>
-              <Select value={agentFilter} onValueChange={setAgentFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All Agents" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Agents</SelectItem>
-                  <SelectItem value="CSO">CSO Agent</SelectItem>
-                  <SelectItem value="CFO">CFO Agent</SelectItem>
-                  <SelectItem value="COO">COO Agent</SelectItem>
-                  <SelectItem value="CMO">CMO Agent</SelectItem>
-                  <SelectItem value="CTO">CTO Agent</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="decision">Decision</SelectItem>
-                  <SelectItem value="risk">Risk</SelectItem>
-                  <SelectItem value="insight">Insight</SelectItem>
-                  <SelectItem value="task">Task</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </Card>
+            <TabsContent value="per-agent" className="space-y-4">
+              <Card className="p-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input placeholder="Search memories..." className="pl-9" />
+                  </div>
+                  <Select value={agentFilter} onValueChange={setAgentFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Agents" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Agents</SelectItem>
+                      <SelectItem value="CSO">CSO Agent</SelectItem>
+                      <SelectItem value="CFO">CFO Agent</SelectItem>
+                      <SelectItem value="COO">COO Agent</SelectItem>
+                      <SelectItem value="CMO">CMO Agent</SelectItem>
+                      <SelectItem value="CTO">CTO Agent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="decision">Decision</SelectItem>
+                      <SelectItem value="risk">Risk</SelectItem>
+                      <SelectItem value="insight">Insight</SelectItem>
+                      <SelectItem value="task">Task</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Card>
 
-          {/* Memory Table */}
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                      <th className="p-4">Title / Summary</th>
-                      <th className="p-4">Agent</th>
-                      <th className="p-4">Type</th>
-                      <th className="p-4">Source</th>
-                      <th className="p-4">Confidence</th>
-                      <th className="p-4 text-right">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMemories.map((memory) => (
-                      <tr
-                        key={memory.id}
-                        onClick={() => setSelectedMemory(memory)}
-                        className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                      >
-                        <td className="p-4 max-w-sm">
-                          <div className="font-medium text-foreground">{memory.title}</div>
-                          <div className="text-sm text-muted-foreground truncate mt-0.5">
-                            {memory.summary}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline">{memory.agent}</Badge>
-                        </td>
-                        <td className="p-4">
-                          <span
-                            className={cn(
-                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                              typeColors[memory.type as keyof typeof typeColors]
-                            )}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                          <th className="p-4">Title / Summary</th>
+                          <th className="p-4">Agent</th>
+                          <th className="p-4">Type</th>
+                          <th className="p-4">Source</th>
+                          <th className="p-4">Confidence</th>
+                          <th className="p-4 text-right">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMemories.map((memory) => (
+                          <tr
+                            key={memory.id}
+                            onClick={() => setSelectedMemory(memory)}
+                            className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
                           >
-                            {memory.type}
-                          </span>
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground capitalize">
-                          {memory.source}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full"
-                                style={{ width: `${memory.confidence}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {memory.confidence}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-right text-sm text-muted-foreground">
-                          <div className="flex items-center justify-end gap-1">
-                            <Clock className="h-3 w-3" />
-                            {memory.created}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                            <td className="p-4 max-w-sm">
+                              <div className="font-medium text-foreground">{memory.title}</div>
+                              <div className="text-sm text-muted-foreground truncate mt-0.5">
+                                {memory.summary}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline">{memory.agent}</Badge>
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={cn(
+                                  "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+                                  typeColors[memory.type as keyof typeof typeColors]
+                                )}
+                              >
+                                {memory.type}
+                              </span>
+                            </td>
+                            <td className="p-4 text-sm text-muted-foreground capitalize">
+                              {memory.source}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary rounded-full"
+                                    style={{ width: `${memory.confidence}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {memory.confidence}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-right text-sm text-muted-foreground">
+                              <div className="flex items-center justify-end gap-1">
+                                <Clock className="h-3 w-3" />
+                                {memory.created}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-        <TabsContent value="global" className="space-y-4">
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                      <th className="p-4">Title / Summary</th>
-                      <th className="p-4">Scope</th>
-                      <th className="p-4 text-right">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {globalMemories.map((memory) => (
-                      <tr
-                        key={memory.id}
-                        className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                      >
-                        <td className="p-4 max-w-lg">
-                          <div className="font-medium text-foreground">{memory.title}</div>
-                          <div className="text-sm text-muted-foreground mt-0.5">
-                            {memory.summary}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="secondary">{memory.scope}</Badge>
-                        </td>
-                        <td className="p-4 text-right text-sm text-muted-foreground">
-                          {memory.created}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="global" className="space-y-4">
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                          <th className="p-4">Title / Summary</th>
+                          <th className="p-4">Scope</th>
+                          <th className="p-4 text-right">Created</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {globalMemories.map((memory) => (
+                          <tr
+                            key={memory.id}
+                            className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                          >
+                            <td className="p-4 max-w-lg">
+                              <div className="font-medium text-foreground">{memory.title}</div>
+                              <div className="text-sm text-muted-foreground mt-0.5">
+                                {memory.summary}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="secondary">{memory.scope}</Badge>
+                            </td>
+                            <td className="p-4 text-right text-sm text-muted-foreground">
+                              {memory.created}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+            <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
+              <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                Coming Soon
+              </span>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="h-[calc(100vh-12rem)] animate-in fade-in zoom-in-95 duration-200">
           <GraphView />
