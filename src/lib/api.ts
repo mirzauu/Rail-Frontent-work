@@ -9,6 +9,58 @@ export class ApiClient {
     this.baseUrl = baseUrl.replace(/\/+$/, "") + "/";
   }
 
+  private extractJsonObjects(input: string): { objects: string[]; remainder: string } {
+    const objects: string[] = [];
+    let start = -1;
+    let depth = 0;
+    let inString = false;
+    let isEscaping = false;
+
+    const s = input;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+
+      if (inString) {
+        if (isEscaping) {
+          isEscaping = false;
+          continue;
+        }
+        if (ch === "\\") {
+          isEscaping = true;
+          continue;
+        }
+        if (ch === "\"") {
+          inString = false;
+        }
+        continue;
+      }
+
+      if (ch === "\"") {
+        inString = true;
+        continue;
+      }
+
+      if (ch === "{") {
+        if (depth === 0) start = i;
+        depth++;
+        continue;
+      }
+
+      if (ch === "}") {
+        if (depth > 0) depth--;
+        if (depth === 0 && start !== -1) {
+          objects.push(s.slice(start, i + 1));
+          start = -1;
+        }
+      }
+    }
+
+    if (start !== -1) {
+      return { objects, remainder: s.slice(start) };
+    }
+    return { objects, remainder: "" };
+  }
+
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
@@ -91,21 +143,34 @@ export class ApiClient {
       const { value, done } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        if (!line.trim()) continue;
+
+      const normalized = buffer
+        .split("\n")
+        .map((l) => (l.startsWith("data:") ? l.slice(5).trim() : l))
+        .join("");
+
+      const { objects, remainder } = this.extractJsonObjects(normalized);
+      buffer = remainder;
+
+      for (const raw of objects) {
+        if (!raw.trim()) continue;
         try {
-          const obj = JSON.parse(line);
+          const obj = JSON.parse(raw);
           onDelta(obj);
         } catch (e) {
           void e;
         }
       }
     }
-    if (buffer.trim()) {
+    const finalNormalized = buffer
+      .split("\n")
+      .map((l) => (l.startsWith("data:") ? l.slice(5).trim() : l))
+      .join("");
+    const { objects } = this.extractJsonObjects(finalNormalized);
+    for (const raw of objects) {
+      if (!raw.trim()) continue;
       try {
-        const obj = JSON.parse(buffer);
+        const obj = JSON.parse(raw);
         onDelta(obj);
       } catch (e) {
         void e;

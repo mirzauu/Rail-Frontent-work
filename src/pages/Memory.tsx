@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { GraphView } from "@/components/shared/GraphView";
 import {
   Select,
   SelectContent,
@@ -14,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Download, Network, Clock } from "lucide-react";
+import { Search, Filter, Network, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const memories = [
@@ -41,6 +42,7 @@ const typeColors = {
 
 export default function Memory() {
   const [activeTab, setActiveTab] = useState("per-agent");
+  const [viewMode, setViewMode] = useState<"list" | "graph">("graph");
   const [selectedMemory, setSelectedMemory] = useState<typeof memories[0] | null>(null);
   const [agentFilter, setAgentFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -58,18 +60,19 @@ export default function Memory() {
         description="Browse and manage agent memories and organizational knowledge"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setViewMode(viewMode === "list" ? "graph" : "list")}
+            >
               <Network className="mr-2 h-4 w-4" />
-              Graph View
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Export
+              {viewMode === "list" ? "Graph View" : "List View"}
             </Button>
           </div>
         }
       />
 
+      {viewMode === "list" ? (
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="per-agent">Per Agent</TabsTrigger>
@@ -226,6 +229,11 @@ export default function Memory() {
           </Card>
         </TabsContent>
       </Tabs>
+      ) : (
+        <div className="h-[calc(100vh-12rem)] animate-in fade-in zoom-in-95 duration-200">
+          <GraphView />
+        </div>
+      )}
 
       {/* Memory Detail Panel */}
       <SidePanel

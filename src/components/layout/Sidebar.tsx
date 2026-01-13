@@ -156,6 +156,7 @@ export function Sidebar() {
                   {!collapsed && (
                     <span className="font-medium">
                       {agent.name} ({agent.role})
+                      {isAgentActive && <span className="text-primary-foreground/70"> ({agent.role})</span>}
                     </span>
                   )}
                 </NavLink>

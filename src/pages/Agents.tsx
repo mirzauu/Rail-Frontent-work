@@ -44,7 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { ChatBubble } from "@/components/shared/ChatBubble";
+import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -282,18 +282,21 @@ const agentEmptyPrompts: Record<string, string> = {
 // AI Models
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
-  { id: "claude", name: "Claude", description: "Anthropic Claude 3.5 Sonnet", icon: Bot },
   { id: "gpt", name: "GPT", description: "OpenAI GPT-4o", icon: Bot },
   { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe },
+  { id: "claude", name: "Claude", description: "Anthropic Claude 3.5 Sonnet", icon: Bot, disabled: true },
 ];
 
 // Agent capabilities for each agent type
 const agentCapabilities: Record<string, { id: string; name: string; description: string }[]> = {
   cso: [
-    { id: "auto", name: "Auto", description: "Automatically select the best capability" },
-    { id: "market-intelligence", name: "Market Intelligence", description: "Competitive analysis and market trends" },
-    { id: "financial-forecasting", name: "Financial Forecasting", description: "Revenue and expense projections" },
-    { id: "product-innovation", name: "Product & Innovation", description: "Product strategy and innovation insights" },
+    { id: "auto", name: "Auto", description: "Automatically select capability" },
+    { id: "strategy", name: "Strategy", description: "Strategic Asset Analysis" },
+    { id: "value_prop", name: "Value Prop", description: "Value Proposition Design" },
+    { id: "gtm", name: "GTM", description: "Go-to-Market Strategy" },
+    { id: "railroad_intel", name: "Railroad Intel", description: "Railroad Network Intelligence" },
+    { id: "mna", name: "M&A", description: "Corporate Development Strategy" },
+    { id: "artifact", name: "Artifact", description: "Artifact Generation" },
   ],
   cfo: [
     { id: "auto", name: "Auto", description: "Automatically select the best capability" },
@@ -482,7 +485,14 @@ export default function Agents() {
     const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     const userMessage: Message = { id: Date.now(), type: "user", content: inputMessage, time: currentTime };
     const assistantId = Date.now() + 1;
-    const assistantMessage: Message = { id: assistantId, type: "agent", agent: currentAgent, content: "", time: currentTime };
+    const assistantMessage: Message = { 
+      id: assistantId, 
+      type: "agent", 
+      agent: currentAgent, 
+      content: "", 
+      time: currentTime,
+      tool_calls: []
+    };
     setMessages([...messages, userMessage, assistantMessage]);
     setIsStreaming(true);
     try {
@@ -526,8 +536,16 @@ export default function Agents() {
         }
       }
       const defaultProjectId = projectId ?? projectsData?.[0]?.id ?? "default";
-      const modelValue = selectedModel === "auto" ? "string" : selectedModel;
-      const agentValue = selectedCapability === "auto" ? "string" : selectedCapability;
+      const modelValue =
+        selectedModel === "auto"
+          ? "string"
+          : selectedModel === "gpt"
+            ? "openai/gpt-4.1-mini"
+            : selectedModel;
+      const agentValue =
+        selectedCapability === "auto"
+          ? "auto"
+          : selectedCapability.toLowerCase().replace(/-/g, "_");
       const payload = {
         query: inputMessage,
         project_id: defaultProjectId,
@@ -537,9 +555,58 @@ export default function Agents() {
         attachment: "",
       };
 
-      await api.streamChat(payload, (chunk) => {
-        if (!chunk || typeof chunk.response !== "string") return;
-        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: (m.content || "") + chunk.response } : m)));
+      await api.streamChat(payload, (chunk: any) => {
+        if (!chunk) return;
+        setMessages((prev) => prev.map((m) => {
+          if (m.id !== assistantId) return m;
+
+          let newContent = m.content || "";
+          if (chunk.response && typeof chunk.response === "string") {
+            newContent += chunk.response;
+          }
+
+          let newToolCalls = m.tool_calls ? [...m.tool_calls] : [];
+          if (chunk.tool_calls && Array.isArray(chunk.tool_calls)) {
+            chunk.tool_calls.forEach((incoming: ToolCall) => {
+              const existingIndex = newToolCalls.findIndex(
+                (tc) => tc.call_id === incoming.call_id
+              );
+              if (existingIndex >= 0) {
+                const existing = newToolCalls[existingIndex];
+                
+                // Deep merge summary
+                const existingSummary = existing.tool_call_details?.summary || {};
+                const incomingSummary = incoming.tool_call_details?.summary || {};
+                
+                const mergedSummary = {
+                    ...existingSummary,
+                    ...incomingSummary,
+                    // If incoming has args/result, they should override or merge
+                    args: incomingSummary.args || existingSummary.args,
+                    result: incomingSummary.result || existingSummary.result
+                };
+
+                const mergedDetails = {
+                  ...existing.tool_call_details,
+                  ...incoming.tool_call_details,
+                  summary: mergedSummary,
+                };
+
+                newToolCalls[existingIndex] = {
+                  ...existing,
+                  ...incoming,
+                  tool_call_details: mergedDetails,
+                  // Keep tool_response if it exists in either, prefer incoming if not empty
+                  tool_response: incoming.tool_response || existing.tool_response
+                };
+              } else {
+                newToolCalls.push(incoming);
+              }
+            });
+          }
+
+          return { ...m, content: newContent, tool_calls: newToolCalls };
+        }));
       });
       if (isNewChat) {
         setIsNewChat(false);
@@ -818,6 +885,7 @@ export default function Agents() {
                         content={message.content}
                         timestamp={message.time}
                         name={agent.name}
+                        tool_calls={message.tool_calls}
                       />
                     </div>
                   </div>
@@ -901,8 +969,12 @@ export default function Agents() {
                       {aiModels.map((model) => (
                         <DropdownMenuItem
                           key={model.id}
-                          onClick={() => setSelectedModel(model.id)}
-                          className="flex items-center gap-2 py-2 cursor-pointer"
+                          onClick={() => !model.disabled && setSelectedModel(model.id)}
+                          disabled={model.disabled}
+                          className={cn(
+                            "flex items-center gap-2 py-2 cursor-pointer",
+                            model.disabled && "opacity-50 cursor-not-allowed"
+                          )}
                         >
                           <div className="flex-1">
                             <div className="font-medium text-sm">{model.name}</div>

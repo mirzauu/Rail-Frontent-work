@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -54,13 +54,6 @@ type DocumentItem = {
   created_at: string;
 };
 
-const folders = [
-  { name: "All Documents", count: 342, icon: FileText },
-  { name: "PDFs", count: 128, icon: File },
-  // { name: "Web Pages", count: 89, icon: Globe },
-  { name: "Notes", count: 125, icon: FileText },
-];
-
 const tagGroups = [
   { name: "Finance", count: 45 },
   { name: "Strategy", count: 38 },
@@ -93,6 +86,29 @@ export default function Knowledge() {
   const [uploadScope, setUploadScope] = useState("organization");
   const [uploading, setUploading] = useState(false);
 
+  // Compute dynamic folder counts and filtered docs
+  const { folderStats, filteredDocs } = useMemo(() => {
+    const allDocs = docs || [];
+    const pdfCount = allDocs.filter(d => (d.file_type || "").toLowerCase() === 'pdf').length;
+    // Consider everything else as "Notes" for now, or check for specific text types
+    const notesCount = allDocs.filter(d => (d.file_type || "").toLowerCase() !== 'pdf').length;
+
+    const stats = [
+      { name: "All Documents", count: allDocs.length, icon: FileText },
+      { name: "PDFs", count: pdfCount, icon: File },
+      { name: "Notes", count: notesCount, icon: FileText },
+    ];
+
+    let filtered = allDocs;
+    if (activeFolder === "PDFs") {
+      filtered = allDocs.filter(d => (d.file_type || "").toLowerCase() === 'pdf');
+    } else if (activeFolder === "Notes") {
+      filtered = allDocs.filter(d => (d.file_type || "").toLowerCase() !== 'pdf');
+    }
+
+    return { folderStats: stats, filteredDocs: filtered };
+  }, [docs, activeFolder]);
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -116,7 +132,7 @@ export default function Knowledge() {
         }
       />
 
-      <div className="flex gap-6 h-[calc(100vh-12rem)]">
+      <div className="flex gap-6 min-h-[calc(100vh-12rem)]">
         <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
           <DialogContent>
             <DialogHeader>
@@ -189,7 +205,7 @@ export default function Knowledge() {
                 By Type
               </h3>
               <div className="space-y-1">
-                {folders.map((folder) => (
+                {folderStats.map((folder) => (
                   <button
                     key={folder.name}
                     onClick={() => setActiveFolder(folder.name)}
@@ -232,8 +248,8 @@ export default function Knowledge() {
         </Card>
 
         {/* Main Content - Document List */}
-        <Card className="flex-1 overflow-hidden flex flex-col">
-          <CardContent className="p-0 flex-1 overflow-auto scrollbar-thin">
+        <Card className="flex-1 flex flex-col">
+          <CardContent className="p-0">
             <table className="w-full">
               <thead className="sticky top-0 bg-card z-10">
                 <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
@@ -246,7 +262,7 @@ export default function Knowledge() {
                 </tr>
               </thead>
               <tbody>
-                {(docs || []).map((doc) => (
+                {filteredDocs.map((doc) => (
                   <tr
                     key={doc.id}
                     onClick={() => setSelectedDoc(doc)}
@@ -300,11 +316,29 @@ export default function Knowledge() {
         {selectedDoc && (
           <div className="space-y-6">
             {/* Preview placeholder */}
-            <div className="aspect-[4/3] rounded-lg border border-border bg-muted/50 flex items-center justify-center">
-              <div className="text-center">
-                {getTypeIcon(selectedDoc.file_type)}
-                <p className="mt-2 text-sm text-muted-foreground">Document Preview</p>
-              </div>
+            <div className="aspect-[4/3] rounded-lg border border-border bg-muted/50 flex items-center justify-center overflow-hidden">
+              {(() => {
+                const path = selectedDoc.storage_path.replace(/\\/g, "/").split('/').map(p => encodeURIComponent(p)).join('/');
+                const url = `http://127.0.0.1:8000/${path}`;
+                const ft = (selectedDoc.file_type || "").toLowerCase();
+
+                if (ft === 'pdf') {
+                  return <iframe src={url} className="w-full h-full" title={selectedDoc.title || "Preview"} />;
+                }
+                if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ft)) {
+                  return <img src={url} className="w-full h-full object-contain" alt={selectedDoc.title || "Preview"} />;
+                }
+
+                return (
+                  <div className="text-center">
+                    {getTypeIcon(selectedDoc.file_type)}
+                    <p className="mt-2 text-sm text-muted-foreground">Preview not available</p>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs text-primary hover:underline block">
+                      Download File
+                    </a>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Assignment Section */}
