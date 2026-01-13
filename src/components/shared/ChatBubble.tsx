@@ -11,8 +11,17 @@ export interface ToolCall {
   event_type: string;
   tool_name: string;
   tool_response?: string;
-  tool_call_details?: any;
+  tool_call_details?: ToolCallDetails;
 }
+
+export type ToolCallSummary = {
+  args?: unknown;
+  result?: unknown;
+} & Record<string, unknown>;
+
+export type ToolCallDetails = {
+  summary?: ToolCallSummary;
+} & Record<string, unknown>;
 
 interface ChatBubbleProps {
   content: string;
@@ -46,10 +55,13 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
      const details = toolCall.tool_call_details;
      // Check for thought in args (this is the "Running tool think" part)
      const args = details?.summary?.args;
-     if (args?.thought) {
-        content = args.thought;
-     } else if (typeof args === 'string') {
-        content = args;
+     if (typeof args === "string") {
+       content = args;
+     } else if (args && typeof args === "object" && !Array.isArray(args)) {
+       const maybeThought = (args as Record<string, unknown>).thought;
+       if (typeof maybeThought === "string") {
+         content = maybeThought;
+       }
      }
      
      // NOTE: We intentionally DO NOT show the 'result' here for think tools,

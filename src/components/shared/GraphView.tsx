@@ -5,10 +5,14 @@ import { api } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 import { useTheme } from "next-themes";
 
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+type JsonObject = { [key: string]: JsonValue };
+
 interface GraphNode {
   id: string;
   labels: string[];
-  properties: Record<string, any>;
+  properties: JsonObject;
   x?: number;
   y?: number;
   val?: number;
@@ -20,7 +24,7 @@ interface GraphLink {
   source: string | GraphNode;
   target: string | GraphNode;
   type: string;
-  properties: Record<string, any>;
+  properties: JsonObject;
 }
 
 interface GraphData {
@@ -90,15 +94,23 @@ export function GraphView() {
     links: data.links
   } : { nodes: [], links: [] };
 
+  const getNodeLabel = (node: FGNode) => {
+    const name = node.properties?.name;
+    if (typeof name === "string" && name.trim()) return name;
+    const title = node.properties?.title;
+    if (typeof title === "string" && title.trim()) return title;
+    return String(node.id);
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full min-h-[600px] bg-background border border-border rounded-lg overflow-hidden">
       <ForceGraph2D
         width={dimensions.width}
         height={dimensions.height}
         graphData={graphData}
-        nodeLabel={(node: FGNode) => node.properties?.name || node.properties?.title || node.id}
+        nodeLabel={getNodeLabel}
         nodeCanvasObject={(node: FGNode, ctx: CanvasRenderingContext2D, _globalScale: number) => {
-          const label = node.properties?.name || node.properties?.title || node.id;
+          const label = getNodeLabel(node);
           const r = node.val ? node.val * 1.5 : 5; // Increase node size slightly
           const fontSize = Math.max(3, r / 2.5); // Adapt font size to node size
 

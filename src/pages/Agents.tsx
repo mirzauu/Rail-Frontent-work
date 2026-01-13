@@ -46,7 +46,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, type StreamDelta } from "@/lib/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -128,6 +128,7 @@ interface Message {
   content: string;
   time: string;
   reasoning?: ReasoningStep[];
+  tool_calls?: ToolCall[];
 }
 
 interface HistoryMessage {
@@ -555,7 +556,17 @@ export default function Agents() {
         attachment: "",
       };
 
-      await api.streamChat(payload, (chunk: any) => {
+      const isToolCall = (v: unknown): v is ToolCall => {
+        if (!v || typeof v !== "object") return false;
+        const o = v as Record<string, unknown>;
+        return (
+          typeof o.call_id === "string" &&
+          typeof o.event_type === "string" &&
+          typeof o.tool_name === "string"
+        );
+      };
+
+      await api.streamChat(payload, (chunk: StreamDelta) => {
         if (!chunk) return;
         setMessages((prev) => prev.map((m) => {
           if (m.id !== assistantId) return m;
@@ -565,9 +576,9 @@ export default function Agents() {
             newContent += chunk.response;
           }
 
-          let newToolCalls = m.tool_calls ? [...m.tool_calls] : [];
-          if (chunk.tool_calls && Array.isArray(chunk.tool_calls)) {
-            chunk.tool_calls.forEach((incoming: ToolCall) => {
+          const newToolCalls: ToolCall[] = m.tool_calls ? [...m.tool_calls] : [];
+          if (Array.isArray(chunk.tool_calls)) {
+            chunk.tool_calls.filter(isToolCall).forEach((incoming) => {
               const existingIndex = newToolCalls.findIndex(
                 (tc) => tc.call_id === incoming.call_id
               );
