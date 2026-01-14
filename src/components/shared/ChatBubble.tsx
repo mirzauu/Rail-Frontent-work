@@ -31,7 +31,18 @@ interface ChatBubbleProps {
   timestamp?: string;
   tool_calls?: ToolCall[];
   showToolPanel?: boolean;
+  isLoading?: boolean;
 }
+
+const TypingDots = () => {
+  return (
+    <div className="flex items-center gap-1 py-2">
+      <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:-0.3s]" />
+      <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:-0.15s]" />
+      <span className="h-2 w-2 rounded-full bg-muted-foreground/60 animate-pulse" />
+    </div>
+  );
+};
 
 const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const isThink = toolCall.tool_name === "think";
@@ -140,7 +151,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   )
 }
 
-export function ChatBubble({ content, role, avatar, name, timestamp, tool_calls, showToolPanel }: ChatBubbleProps) {
+export function ChatBubble({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading }: ChatBubbleProps) {
   const isUser = role === "user";
 
   const normalizeTables = (text: string): string => {
@@ -184,6 +195,8 @@ export function ChatBubble({ content, role, avatar, name, timestamp, tool_calls,
     // Ensure code blocks have a blank line before them
     .replace(/([^\n])\n(```)/g, "$1\n\n$2"));
 
+  const showTyping = role === "assistant" && isLoading && processedContent.trim().length === 0;
+
   return (
     <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden", isUser ? "justify-end" : "justify-start")}>
       <div className={cn("flex flex-col min-w-0 overflow-hidden", isUser ? "items-end max-w-[85%]" : "items-start max-w-full")}>
@@ -216,83 +229,86 @@ export function ChatBubble({ content, role, avatar, name, timestamp, tool_calls,
               isUser ? "prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground" : ""
             )}
           >
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              // Override specific elements if needed
-              strong({ children, ...props }) {
-                return (
-                  <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
-                    {children}
-                  </strong>
-                );
-              },
-              blockquote({ children }) {
-                return (
-                  <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
-                    {children}
-                  </blockquote>
-                );
-              },
-              ul({ children }) {
-                return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
-              },
-              ol({ children }) {
-                return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
-              },
-              li({ children }) {
-                return <li className="pl-1">{children}</li>;
-              },
-              hr() {
-                return <hr className="my-6 border-border" />;
-              },
-              code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
-                const text = String(children ?? "");
-                const isBlock =
-                  inline === false ||
-                  (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
+          {showTyping ? (
+            <TypingDots />
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                strong({ children, ...props }) {
+                  return (
+                    <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
+                      {children}
+                    </strong>
+                  );
+                },
+                blockquote({ children }) {
+                  return (
+                    <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
+                      {children}
+                    </blockquote>
+                  );
+                },
+                ul({ children }) {
+                  return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
+                },
+                ol({ children }) {
+                  return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
+                },
+                li({ children }) {
+                  return <li className="pl-1">{children}</li>;
+                },
+                hr() {
+                  return <hr className="my-6 border-border" />;
+                },
+                code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+                  const text = String(children ?? "");
+                  const isBlock =
+                    inline === false ||
+                    (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
 
-                return isBlock ? (
-                  <pre className="rounded-md p-3 my-2 overflow-x-auto w-full">
-                    <code className={cn("text-[10px] font-mono", className)} {...props}>
+                  return isBlock ? (
+                    <pre className="rounded-md p-3 my-2 overflow-x-auto w-full">
+                      <code className={cn("text-[10px] font-mono", className)} {...props}>
+                        {children}
+                      </code>
+                    </pre>
+                  ) : (
+                    <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
                       {children}
                     </code>
-                  </pre>
-                ) : (
-                  <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-              table({ children }) {
-                return (
-                  <div className="overflow-x-auto my-4 border rounded-md block w-full">
-                    <table className="text-xs text-left border-collapse table-auto">
+                  );
+                },
+                table({ children }) {
+                  return (
+                    <div className="overflow-x-auto my-4 border rounded-md block w-full">
+                      <table className="text-xs text-left border-collapse table-auto">
+                        {children}
+                      </table>
+                    </div>
+                  );
+                },
+                thead({ children }) {
+                  return <thead className="bg-muted/50 border-b">{children}</thead>;
+                },
+                th({ children }) {
+                  return <th className="px-2 py-1.5 font-medium border-r last:border-r-0 whitespace-nowrap">{children}</th>;
+                },
+                td({ children }) {
+                  return <td className="px-2 py-1.5 border-t border-r last:border-r-0 min-w-[100px]">{children}</td>;
+                },
+                a({ children, href }) {
+                  return (
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
                       {children}
-                    </table>
-                  </div>
-                );
-              },
-              thead({ children }) {
-                return <thead className="bg-muted/50 border-b">{children}</thead>;
-              },
-              th({ children }) {
-                return <th className="px-2 py-1.5 font-medium border-r last:border-r-0 whitespace-nowrap">{children}</th>;
-              },
-              td({ children }) {
-                return <td className="px-2 py-1.5 border-t border-r last:border-r-0 min-w-[100px]">{children}</td>;
-              },
-              a({ children, href }) {
-                return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
-                    {children}
-                  </a>
-                );
-              }
-            }}
-          >
-            {processedContent}
-          </ReactMarkdown>
+                    </a>
+                  );
+                }
+              }}
+            >
+              {processedContent}
+            </ReactMarkdown>
+          )}
           </div>
         </div>
       </div>

@@ -801,7 +801,7 @@ export default function Agents() {
                 </div>
               </div>
             ) : (
-            displayMessages.map((message) => {
+            displayMessages.map((message, index) => {
               if (message.type === "user") {
                 return (
                   <ChatBubble
@@ -815,6 +815,8 @@ export default function Agents() {
               } else {
                 const agent = aiAgents[message.agent as keyof typeof aiAgents];
                 const isReasoningExpanded = expandedReasonings[message.id] ?? false;
+                const isLast = index === displayMessages.length - 1;
+                const showTyping = isStreaming && isLast && (message.content || "").trim().length === 0;
 
                 return (
                   <div key={message.id} className="flex items-start gap-3">
@@ -901,6 +903,7 @@ export default function Agents() {
                         timestamp={message.time}
                         name={agent.name}
                         tool_calls={message.tool_calls}
+                        isLoading={showTyping}
                       />
                     </div>
                   </div>

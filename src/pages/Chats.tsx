@@ -187,15 +187,20 @@ export default function Chats() {
               <div className="flex-1 overflow-hidden relative">
                   <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
                     <div className="space-y-4 pb-4">
-                        {messages.map((msg) => (
-                        <ChatBubble
-                            key={msg.id}
-                            content={msg.content}
-                            role={msg.role}
-                            timestamp={msg.timestamp}
-                            name={msg.role === "assistant" ? selectedChat?.name : "You"}
-                        />
-                        ))}
+                        {messages.map((msg, index) => {
+                          const isLast = index === messages.length - 1;
+                          const showTyping = isStreaming && isLast && msg.role === "assistant" && (msg.content || "").trim().length === 0;
+                          return (
+                            <ChatBubble
+                              key={msg.id}
+                              content={msg.content}
+                              role={msg.role}
+                              timestamp={msg.timestamp}
+                              name={msg.role === "assistant" ? selectedChat?.name : "You"}
+                              isLoading={showTyping}
+                            />
+                          );
+                        })}
                     </div>
                   </ScrollArea>
               </div>
