@@ -1,4 +1,7 @@
-const BASE_URL = "http://127.0.0.1:8000/";
+const DEV_BASE_URL = "http://127.0.0.1:8000/";
+const BASE_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_BASE_URL || DEV_BASE_URL)
+  : "/";
 const TOKEN_KEY = "access_token";
 const USER_KEY = "user";
 
@@ -64,7 +67,7 @@ export class ApiClient {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
-
+cd 
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
   }

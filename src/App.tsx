@@ -4,18 +4,22 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import Agents from "./pages/Agents";
-import Memory from "./pages/Memory";
-import Knowledge from "./pages/Knowledge";
-import Chats from "./pages/Chats";
-import Users from "./pages/Users";
-import Integrations from "./pages/Integrations";
-import Settings from "./pages/Settings";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { FullscreenLoader } from "@/components/shared/Spinner";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Agents = lazy(() => import("./pages/Agents"));
+const Memory = lazy(() => import("./pages/Memory"));
+const Knowledge = lazy(() => import("./pages/Knowledge"));
+const Chats = lazy(() => import("./pages/Chats"));
+const Users = lazy(() => import("./pages/Users"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const Settings = lazy(() => import("./pages/Settings"));
 
 const queryClient = new QueryClient();
 
@@ -26,23 +30,85 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            {/* Auth Routes - No Layout */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-
-            {/* App Routes - With Layout */}
-            <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-            <Route path="/agents" element={<AppLayout><Agents /></AppLayout>} />
-            <Route path="/agents/:agentId" element={<AppLayout><Agents /></AppLayout>} />
-            <Route path="/memory" element={<AppLayout><Memory /></AppLayout>} />
-            <Route path="/knowledge" element={<AppLayout><Knowledge /></AppLayout>} />
-            <Route path="/chats" element={<AppLayout><Chats /></AppLayout>} />
-            <Route path="/users" element={<AppLayout><Users /></AppLayout>} />
-            <Route path="/integrations" element={<AppLayout><Integrations /></AppLayout>} />
-            <Route path="/settings" element={<AppLayout><Settings /></AppLayout>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<FullscreenLoader text="Loading content..." />}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Dashboard /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/agents"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Agents /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/agents/:agentId"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Agents /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/memory"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Memory /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/knowledge"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Knowledge /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/chats"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Chats /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Users /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/integrations"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Integrations /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout><Settings /></AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
@@ -50,4 +116,3 @@ const App = () => (
 );
 
 export default App;
-
