@@ -420,10 +420,10 @@ export default function Agents() {
   });
   const sortedProjects = projectsData
     ? [...projectsData].sort((a, b) => {
-        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return bd - ad;
-      })
+      const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bd - ad;
+    })
     : undefined;
   const renderedChatHistory = sortedProjects
     ? sortedProjects.map((p) => ({ title: p.name, projectId: p.id, hasMenu: false, isActive: (selectedProjectId ?? sortedProjects[0]?.id) === p.id }))
@@ -479,9 +479,27 @@ export default function Agents() {
     void loadInitial();
   }, [projectsData, currentAgentKey]);
 
+  const lastScrollTime = useRef(0);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, agentId, isStreaming]);
+    const scroll = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({
+          behavior: isStreaming ? "auto" : "smooth",
+          block: "end",
+        });
+      }
+    };
+
+    // Immediate scroll
+    scroll();
+
+    // If streaming, extra scroll to ensure we catch rapid height changes
+    if (isStreaming) {
+      const timer = setTimeout(scroll, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, isStreaming, agentId]);
 
   // Handle sending a message
   const handleSendMessage = async () => {
@@ -489,11 +507,11 @@ export default function Agents() {
     const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     const userMessage: Message = { id: Date.now(), type: "user", content: inputMessage, time: currentTime };
     const assistantId = Date.now() + 1;
-    const assistantMessage: Message = { 
-      id: assistantId, 
-      type: "agent", 
-      agent: currentAgent, 
-      content: "", 
+    const assistantMessage: Message = {
+      id: assistantId,
+      type: "agent",
+      agent: currentAgent,
+      content: "",
       time: currentTime,
       tool_calls: []
     };
@@ -587,17 +605,17 @@ export default function Agents() {
               );
               if (existingIndex >= 0) {
                 const existing = newToolCalls[existingIndex];
-                
+
                 // Deep merge summary
                 const existingSummary = existing.tool_call_details?.summary || {};
                 const incomingSummary = incoming.tool_call_details?.summary || {};
-                
+
                 const mergedSummary = {
-                    ...existingSummary,
-                    ...incomingSummary,
-                    // If incoming has args/result, they should override or merge
-                    args: incomingSummary.args || existingSummary.args,
-                    result: incomingSummary.result || existingSummary.result
+                  ...existingSummary,
+                  ...incomingSummary,
+                  // If incoming has args/result, they should override or merge
+                  args: incomingSummary.args || existingSummary.args,
+                  result: incomingSummary.result || existingSummary.result
                 };
 
                 const mergedDetails = {
@@ -789,7 +807,7 @@ export default function Agents() {
 
         {/* Chat Content */}
         <ScrollArea className="flex-1 p-6">
-          <div className="max-w-[95%] mx-auto space-y-6 pb-32">
+          <div className="max-w-[95%] mx-auto space-y-6 pb-40">
             {/* Conversation Messages */}
             {displayMessages.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
@@ -800,116 +818,116 @@ export default function Agents() {
                 </div>
               </div>
             ) : (
-            displayMessages.map((message, index) => {
-              if (message.type === "user") {
-                return (
-                  <ChatBubble
-                    key={message.id}
-                    role="user"
-                    content={message.content}
-                    timestamp={message.time}
-                    name="You"
-                  />
-                );
-              } else {
-                const agent = aiAgents[message.agent as keyof typeof aiAgents];
-                const isReasoningExpanded = expandedReasonings[message.id] ?? false;
-                const isLast = index === displayMessages.length - 1;
-                const showTyping = isStreaming && isLast && (message.content || "").trim().length === 0;
+              displayMessages.map((message, index) => {
+                if (message.type === "user") {
+                  return (
+                    <ChatBubble
+                      key={message.id}
+                      role="user"
+                      content={message.content}
+                      timestamp={message.time}
+                      name="You"
+                    />
+                  );
+                } else {
+                  const agent = aiAgents[message.agent as keyof typeof aiAgents];
+                  const isReasoningExpanded = expandedReasonings[message.id] ?? false;
+                  const isLast = index === displayMessages.length - 1;
+                  const showTyping = isStreaming && isLast && (message.content || "").trim().length === 0;
 
-                return (
-                  <div key={message.id} className="flex items-start gap-3">
-                    <Avatar className={cn("h-8 w-8 flex-shrink-0", agent.color)}>
-                      <AvatarFallback className={cn(agent.color, "text-white")}>
-                        <FontAwesomeIcon icon={faFreebsd} className="h-5 w-5" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col flex-1 max-w-[85%]">
-                      {/* Reasoning Panel */}
-                      {message.reasoning && message.reasoning.length > 0 && (
-                        <div className="mb-2">
-                          {/* Reasoning Header */}
-                          <button
-                            onClick={() => setExpandedReasonings(prev => ({
-                              ...prev,
-                              [message.id]: !prev[message.id]
-                            }))}
-                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-                          >
-                            <span className="font-medium">Reasoning completed</span>
-                            {isReasoningExpanded ? (
-                              <ChevronUp className="h-3.5 w-3.5" />
-                            ) : (
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                  return (
+                    <div key={message.id} className="flex items-start gap-3">
+                      <Avatar className={cn("h-8 w-8 flex-shrink-0", agent.color)}>
+                        <AvatarFallback className={cn(agent.color, "text-white")}>
+                          <FontAwesomeIcon icon={faFreebsd} className="h-5 w-5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col flex-1 max-w-[85%]">
+                        {/* Reasoning Panel */}
+                        {message.reasoning && message.reasoning.length > 0 && (
+                          <div className="mb-2">
+                            {/* Reasoning Header */}
+                            <button
+                              onClick={() => setExpandedReasonings(prev => ({
+                                ...prev,
+                                [message.id]: !prev[message.id]
+                              }))}
+                              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                            >
+                              <span className="font-medium">Reasoning completed</span>
+                              {isReasoningExpanded ? (
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              ) : (
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              )}
+                            </button>
 
-                          {/* Expanded Reasoning Steps */}
-                          {isReasoningExpanded && (
-                            <div className="mt-1 space-y-1 pl-1">
-                              {message.reasoning.map((step) => {
-                                const stepKey = `${message.id}-${step.id}`;
-                                const isStepExpanded = expandedSteps[stepKey] ?? false;
+                            {/* Expanded Reasoning Steps */}
+                            {isReasoningExpanded && (
+                              <div className="mt-1 space-y-1 pl-1">
+                                {message.reasoning.map((step) => {
+                                  const stepKey = `${message.id}-${step.id}`;
+                                  const isStepExpanded = expandedSteps[stepKey] ?? false;
 
-                                return (
-                                  <div key={step.id} className="space-y-0.5">
-                                    {/* Step Header */}
-                                    <button
-                                      onClick={() => setExpandedSteps(prev => ({
-                                        ...prev,
-                                        [stepKey]: !prev[stepKey]
-                                      }))}
-                                      className="flex items-center gap-2 text-sm w-full text-left py-0.5"
-                                    >
-                                      {step.status === 'completed' ? (
-                                        <Check className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
-                                      ) : step.status === 'loading' ? (
-                                        <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin flex-shrink-0" />
-                                      ) : (
-                                        <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
-                                      )}
-                                      <span className="text-foreground/80">{step.title}</span>
-                                      {step.details && (
-                                        isStepExpanded ? (
-                                          <ChevronUp className="h-3 w-3 text-muted-foreground ml-auto" />
+                                  return (
+                                    <div key={step.id} className="space-y-0.5">
+                                      {/* Step Header */}
+                                      <button
+                                        onClick={() => setExpandedSteps(prev => ({
+                                          ...prev,
+                                          [stepKey]: !prev[stepKey]
+                                        }))}
+                                        className="flex items-center gap-2 text-sm w-full text-left py-0.5"
+                                      >
+                                        {step.status === 'completed' ? (
+                                          <Check className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                        ) : step.status === 'loading' ? (
+                                          <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin flex-shrink-0" />
                                         ) : (
-                                          <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />
-                                        )
+                                          <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/30 flex-shrink-0" />
+                                        )}
+                                        <span className="text-foreground/80">{step.title}</span>
+                                        {step.details && (
+                                          isStepExpanded ? (
+                                            <ChevronUp className="h-3 w-3 text-muted-foreground ml-auto" />
+                                          ) : (
+                                            <ChevronDown className="h-3 w-3 text-muted-foreground ml-auto" />
+                                          )
+                                        )}
+                                      </button>
+
+                                      {/* Step Details */}
+                                      {isStepExpanded && step.details && (
+                                        <div className="pl-6 space-y-0.5">
+                                          {step.details.map((detail, idx) => (
+                                            <p key={idx} className="text-xs text-muted-foreground font-mono">
+                                              {detail}
+                                            </p>
+                                          ))}
+                                        </div>
                                       )}
-                                    </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
-                                    {/* Step Details */}
-                                    {isStepExpanded && step.details && (
-                                      <div className="pl-6 space-y-0.5">
-                                        {step.details.map((detail, idx) => (
-                                          <p key={idx} className="text-xs text-muted-foreground font-mono">
-                                            {detail}
-                                          </p>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <ChatBubble
-                        role="assistant"
-                        content={message.content}
-                        timestamp={message.time}
-                        name={agent.name}
-                        tool_calls={message.tool_calls}
-                        isLoading={showTyping}
-                      />
+                        <ChatBubble
+                          role="assistant"
+                          content={message.content}
+                          timestamp={message.time}
+                          name={agent.name}
+                          tool_calls={message.tool_calls}
+                          isLoading={showTyping}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              }
-            }))}
-            <div ref={messagesEndRef} />
+                  );
+                }
+              }))}
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         </ScrollArea>
 
@@ -1039,10 +1057,10 @@ export default function Agents() {
                           )}
                         </DropdownMenuItem>
                       ))}
-                  </DropdownMenuContent>
+                    </DropdownMenuContent>
                   </DropdownMenu>
 
-                  
+
 
 
 
@@ -1103,94 +1121,94 @@ export default function Agents() {
             </div>
           </div>
           <ScrollArea className="h-full p-4 min-w-[300px]">
-          <div className="space-y-6">
-            {/* Context Note */}
-            <div className="bg-secondary/30 rounded-lg p-3 text-sm text-foreground/80 leading-relaxed">
-              Discussion focusing on budget breakdown and resource allocation for Q1-Q2 initiatives across digital transformation, customer experience, and strategic partnerships.
-            </div>
-
-            {/* Docs Section */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-semibold text-sm">Docs</span>
+            <div className="space-y-6">
+              {/* Context Note */}
+              <div className="bg-secondary/30 rounded-lg p-3 text-sm text-foreground/80 leading-relaxed">
+                Discussion focusing on budget breakdown and resource allocation for Q1-Q2 initiatives across digital transformation, customer experience, and strategic partnerships.
               </div>
 
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer">
-                  <ChevronDown className="h-4 w-4" />
-                  <span className="text-sm font-medium">Thread Summary</span>
+              {/* Docs Section */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-semibold text-sm">Docs</span>
                 </div>
 
-                <div className="pl-2 space-y-2 mt-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                    <ChevronDown className="h-4 w-4" />
+                    <span className="text-sm font-medium">Thread Summary</span>
+                  </div>
+
+                  <div className="pl-2 space-y-2 mt-2">
+                    {[
+                      { name: "Q1-Q2 Financial Model.xlsx", type: "spreadsheet" },
+                      { name: "Talent Acquisition Strategy.pdf", type: "pdf" },
+                      { name: "Project Timeline.doc", type: "doc" }
+                    ].map((doc, i) => {
+                      // Determine color based on file type
+                      const getFileColor = (type: string) => {
+                        switch (type) {
+                          case 'pdf':
+                            return 'text-red-500';
+                          case 'spreadsheet':
+                            return 'text-green-500';
+                          case 'doc':
+                            return 'text-blue-500';
+                          default:
+                            return 'text-primary';
+                        }
+                      };
+
+                      return (
+                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                          <FileText className={cn("h-4 w-4", getFileColor(doc.type))} />
+                          <span className="text-sm text-foreground/80 truncate">{doc.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Related Memory */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="font-semibold text-sm">Related Memory</span>
+                </div>
+                <div className="space-y-2">
                   {[
-                    { name: "Q1-Q2 Financial Model.xlsx", type: "spreadsheet" },
-                    { name: "Talent Acquisition Strategy.pdf", type: "pdf" },
-                    { name: "Project Timeline.doc", type: "doc" }
-                  ].map((doc, i) => {
-                    // Determine color based on file type
-                    const getFileColor = (type: string) => {
+                    { text: "Budget Planning Session (Dec 1)", type: "planning" },
+                    { text: "Talent Network Review (Nov 28)", type: "review" },
+                    { text: "Infrastructure Assessment (Nov 25)", type: "assessment" }
+                  ].map((memory, i) => {
+                    // Determine color based on memory type
+                    const getMemoryColor = (type: string) => {
                       switch (type) {
-                        case 'pdf':
-                          return 'text-red-500';
-                        case 'spreadsheet':
-                          return 'text-green-500';
-                        case 'doc':
-                          return 'text-blue-500';
+                        case 'planning':
+                          return 'text-purple-500';
+                        case 'review':
+                          return 'text-amber-500';
+                        case 'assessment':
+                          return 'text-cyan-500';
                         default:
-                          return 'text-primary';
+                          return 'text-orange-400';
                       }
                     };
 
                     return (
-                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                        <FileText className={cn("h-4 w-4", getFileColor(doc.type))} />
-                        <span className="text-sm text-foreground/80 truncate">{doc.name}</span>
+                      <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                        <FileText className={cn("h-4 w-4 mt-0.5 flex-shrink-0", getMemoryColor(memory.type))} />
+                        <span className="text-sm text-foreground/80 leading-tight line-clamp-2">
+                          {memory.text}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
               </div>
             </div>
-
-            <Separator />
-
-            {/* Related Memory */}
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-semibold text-sm">Related Memory</span>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { text: "Budget Planning Session (Dec 1)", type: "planning" },
-                  { text: "Talent Network Review (Nov 28)", type: "review" },
-                  { text: "Infrastructure Assessment (Nov 25)", type: "assessment" }
-                ].map((memory, i) => {
-                  // Determine color based on memory type
-                  const getMemoryColor = (type: string) => {
-                    switch (type) {
-                      case 'planning':
-                        return 'text-purple-500';
-                      case 'review':
-                        return 'text-amber-500';
-                      case 'assessment':
-                        return 'text-cyan-500';
-                      default:
-                        return 'text-orange-400';
-                    }
-                  };
-
-                  return (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                      <FileText className={cn("h-4 w-4 mt-0.5 flex-shrink-0", getMemoryColor(memory.type))} />
-                      <span className="text-sm text-foreground/80 leading-tight line-clamp-2">
-                        {memory.text}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
           </ScrollArea>
         </div>
       </div>
