@@ -24,7 +24,6 @@ import {
   Loader2,
   CheckSquare,
   Send,
-  Paperclip,
   Mic,
   DollarSign,
   Settings,
@@ -1040,23 +1039,10 @@ export default function Agents() {
                           )}
                         </DropdownMenuItem>
                       ))}
-                    </DropdownMenuContent>
+                  </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost" 
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Attach File</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  
 
 
 

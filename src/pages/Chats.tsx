@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, MessageSquare, Send, Paperclip } from "lucide-react";
+import { Search, MessageSquare, Send } from "lucide-react";
 import { ChatBubble } from "@/components/shared/ChatBubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -207,9 +207,6 @@ export default function Chats() {
 
               <div className="p-4 border-t border-border mt-auto">
                 <div className="flex gap-2">
-                  <Button variant="outline" size="icon" className="shrink-0">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
                   <Input 
                     placeholder="Type your message..." 
                     value={input}

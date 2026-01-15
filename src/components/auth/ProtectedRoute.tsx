@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [location.key]);
 
   if (checking) {
-    return <FullscreenLoader text="Loading content..." />;
+    return <FullscreenLoader text="Loading RailvisionAI..." />;
   }
 
   if (!hasToken) {

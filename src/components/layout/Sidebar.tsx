@@ -94,7 +94,7 @@ export function Sidebar() {
         </div>
         {!collapsed && (
           <span className="text-xl font-semibold text-gray-800 dark:text-white">
-            RailVision
+            RailVision AI
           </span>
         )}
       </button>

@@ -319,7 +319,7 @@ export default function Knowledge() {
             <div className="aspect-[4/3] rounded-lg border border-border bg-muted/50 flex items-center justify-center overflow-hidden">
               {(() => {
                 const path = selectedDoc.storage_path.replace(/\\/g, "/").split('/').map(p => encodeURIComponent(p)).join('/');
-                const url = `http://127.0.0.1:8000/${path}`;
+                const url = `${import.meta.env.VITE_API_BASE_URL}/${path}`;
                 const ft = (selectedDoc.file_type || "").toLowerCase();
 
                 if (ft === 'pdf') {
