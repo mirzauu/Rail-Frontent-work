@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info } from "lucide-react";
 import { useState } from "react";
 
 export interface ToolCall {
@@ -45,110 +45,92 @@ const TypingDots = () => {
 };
 
 const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
-  const isThink = toolCall.tool_name === "think";
-  const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT" ||
-    (toolCall.tool_response && toolCall.tool_response.includes("Completed tool think"));
+  const toolName = toolCall.tool_name.toLowerCase();
+  const isThink = toolName === "think";
+  const isSearch = toolName.includes("search") || toolName.includes("web");
+  const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT";
 
-  const [isOpen, setIsOpen] = useState(isThink && !isCompleted);
+  const [isOpen, setIsOpen] = useState(isThink ? !isCompleted : false);
 
-  // Auto-collapse when completed
+  // Auto-collapse think tool when completed
   React.useEffect(() => {
     if (isThink && isCompleted) {
       setIsOpen(false);
     }
   }, [isThink, isCompleted]);
 
-  const title = isThink ? (isCompleted ? "Thought Completed" : "Thinking...") : `Tool: ${toolCall.tool_name}`;
+  // Extract info from summary
+  const details = toolCall.tool_call_details?.summary;
+  const args = (details?.args as any) || {};
+  const result = (details?.result as any) || {};
 
-  // Extract content to show
-  let content = "";
+  const title = isThink
+    ? (isCompleted ? "Analysis Complete" : "Thinking...")
+    : isSearch
+      ? (isCompleted ? "Search Results" : "Searching...")
+      : `Tool: ${toolCall.tool_name}`;
+
+  const icon = isThink ? <Brain className="h-3 w-3" /> : isSearch ? <Globe className="h-3 w-3" /> : <Code className="h-3 w-3" />;
+
+  // Normalized content extracting
+  let bodyContent: React.ReactNode = null;
   if (isThink) {
-    const details = toolCall.tool_call_details;
-    // Check for thought in args (this is the "Running tool think" part)
-    const args = details?.summary?.args;
-    if (typeof args === "string") {
-      content = args;
-    } else if (args && typeof args === "object" && !Array.isArray(args)) {
-      const maybeThought = (args as Record<string, unknown>).thought;
-      if (typeof maybeThought === "string") {
-        content = maybeThought;
-      }
-    }
-
-    // NOTE: We intentionally DO NOT show the 'result' here for think tools,
-    // because the user wants to hide the summary of the "Completed tool think" response.
-    // We only show the input thought (args).
+    const thought = args.thought || toolCall.tool_response;
+    const analysis = result.analysis;
+    bodyContent = (
+      <div className="space-y-2 py-1">
+        {thought && <div className="text-muted-foreground italic text-[11px] leading-relaxed">"{thought}"</div>}
+        {isCompleted && analysis && (
+          <div className="text-foreground/80 border-t border-border/40 pt-2 mt-2">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
+          </div>
+        )}
+      </div>
+    );
+  } else if (isSearch) {
+    const query = args.query;
+    const content = result.content;
+    bodyContent = (
+      <div className="space-y-2 py-1 font-sans">
+        {query && <div className="text-[11px] opacity-70">Query: {query}</div>}
+        {isCompleted && content && (
+          <div className="text-[12px] leading-relaxed border-t border-border/40 pt-2 mt-2 prose prose-xs dark:prose-invert max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        )}
+      </div>
+    );
   } else {
-    content = JSON.stringify(toolCall.tool_call_details, null, 2);
+    bodyContent = (
+      <pre className="text-[10px] font-mono whitespace-pre-wrap py-1">
+        {JSON.stringify(details || toolCall.tool_call_details || {}, null, 2)}
+      </pre>
+    );
   }
-
-  // If content is empty, try to fallback to tool_response
-  if (!content && toolCall.tool_response) {
-    content = toolCall.tool_response;
-  }
-
-  // Debug fallback: if still empty, show raw details
-  if (!content && toolCall.tool_call_details) {
-    content = JSON.stringify(toolCall.tool_call_details, null, 2);
-  }
-
-  // Ensure content is not undefined
-  content = content || "";
-
-  const status = toolCall.tool_response;
 
   return (
-    <div className={cn(
-      "w-full max-w-full mb-1",
-      isThink ? "pl-2 border-l-2 border-muted-foreground/20" : "border border-border rounded-md bg-muted/30 overflow-hidden"
-    )}>
+    <div className="w-full mb-2 group transition-all pl-3 border-l-2 border-muted-foreground/20">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center justify-between w-full px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors",
-          isThink ? "hover:text-foreground pl-0" : "hover:bg-muted/50"
-        )}
+        className="flex items-center justify-between w-full text-muted-foreground transition-colors py-1 text-[10px] hover:text-foreground"
       >
-        <div className="flex items-center gap-1.5">
-          {isThink ? (
-            <div className="flex items-center gap-1.5 text-muted-foreground/70">
-              <Brain className="h-3 w-3" />
-              <span className="font-semibold">{title}</span>
-            </div>
-          ) : (
-            <>
-              <Code className="h-3 w-3" />
-              <span>{title}</span>
-              <span className="opacity-70 font-normal truncate max-w-[200px]">
-                {status && `- ${status}`}
-              </span>
-            </>
-          )}
+        <div className="flex items-center gap-2">
+          <div className={cn(!isCompleted && !isThink && "animate-spin-slow")}>
+            {icon}
+          </div>
+          <span className="font-semibold tracking-tight uppercase">{title}</span>
+          {!isCompleted && <span className="flex h-1 w-1 rounded-full bg-primary animate-pulse ml-1" />}
         </div>
-        {!isThink && (isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+        {isOpen ? <ChevronUp className="h-3 w-3 opacity-50" /> : <ChevronDown className="h-3 w-3 opacity-50" />}
       </button>
+
       {isOpen && (
-        <div className={cn(
-          "text-[12px] text-foreground/90 overflow-x-auto max-h-[200px] overflow-y-auto",
-          isThink ? "pl-0 py-1" : "px-3 py-2 border-t border-border bg-background/50"
-        )}>
-          {isThink ? (
-            <div className="prose prose-xs dark:prose-invert max-w-none text-muted-foreground leading-relaxed font-mono">
-              {content ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-              ) : (
-                <div className="flex items-center gap-2 italic opacity-70">
-                  {!isCompleted && <span className="animate-pulse">Thinking...</span>}
-                </div>
-              )}
-            </div>
-          ) : (
-            <pre className="whitespace-pre-wrap font-mono">{content}</pre>
-          )}
+        <div className="text-[12px] leading-relaxed transition-all animate-in fade-in slide-in-from-top-1 duration-200">
+          {bodyContent}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading }: ChatBubbleProps) => {
@@ -180,9 +162,17 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
 
   // Preprocess content to ensure better markdown rendering
   const processedContent = React.useMemo(() => {
-    return normalizeTables(content
-      .replace(/\r\n/g, "\n")
-      .replace(/\n/g, "\n")
+    let raw = content
+      .replace(/\\n/g, "\n")
+      .replace(/\r\n/g, "\n");
+
+    // Unwrap tables from markdown code blocks
+    // This allows tables wrapped in ```markdown or ``` to render as actual tables instead of raw code
+    raw = raw.replace(/```(?:markdown)?\s*?\n\s*(\|[\s\S]*?\|)\s*?\n\s*?```/g, (match, table) => {
+      return "\n" + table + "\n";
+    });
+
+    return normalizeTables(raw
       .replace(/\\\*\\\*/g, "**")
       .replace(/([^\n])\n(#+\s)/g, "$1\n\n$2")
       .replace(/([^\n])\n(```)/g, "$1\n\n$2"));
@@ -261,8 +251,8 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
                       (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
 
                     return isBlock ? (
-                      <pre className="rounded-md p-3 my-2 overflow-x-auto w-full">
-                        <code className={cn("text-[10px] font-mono", className)} {...props}>
+                      <pre className="rounded-md p-4 my-4 overflow-x-auto w-full bg-muted/20 border border-border/50 text-foreground">
+                        <code className={cn("text-[11px] font-mono", className)} {...props}>
                           {children}
                         </code>
                       </pre>
@@ -274,21 +264,21 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
                   },
                   table({ children }) {
                     return (
-                      <div className="overflow-x-auto my-4 border rounded-md block w-full">
-                        <table className="text-xs text-left border-collapse table-auto">
+                      <div className="overflow-x-auto my-6 border border-border/60 rounded-lg shadow-sm block w-full bg-card">
+                        <table className="text-[12px] text-left border-collapse table-auto w-full">
                           {children}
                         </table>
                       </div>
                     );
                   },
                   thead({ children }) {
-                    return <thead className="bg-muted/50 border-b">{children}</thead>;
+                    return <thead className="bg-muted/40 border-b border-border/60">{children}</thead>;
                   },
                   th({ children }) {
-                    return <th className="px-2 py-1.5 font-medium border-r last:border-r-0 whitespace-nowrap">{children}</th>;
+                    return <th className="px-4 py-2.5 font-semibold border-r border-border/40 last:border-r-0 whitespace-nowrap text-foreground/80">{children}</th>;
                   },
                   td({ children }) {
-                    return <td className="px-2 py-1.5 border-t border-r last:border-r-0 min-w-[100px]">{children}</td>;
+                    return <td className="px-4 py-2.5 border-t border-border/40 border-r border-border/40 last:border-r-0 min-w-[120px] text-foreground/70 leading-relaxed">{children}</td>;
                   },
                   a({ children, href }) {
                     return (

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faRobot,
@@ -16,35 +17,62 @@ import {
   faBolt,
   faFileAlt,
   faArrowRight,
-  faUsers
+  faUsers,
+  faChartLine,
+  faMicrochip,
+  faShieldAlt,
+  faZap,
+  faBrain
 } from "@fortawesome/free-solid-svg-icons";
 import { cn } from "@/lib/utils";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+} from "recharts";
+
+const usageData = [
+  { name: "Mon", requests: 400, tokens: 2400 },
+  { name: "Tue", requests: 300, tokens: 1398 },
+  { name: "Wed", requests: 900, tokens: 9800 },
+  { name: "Thu", requests: 1480, tokens: 3908 },
+  { name: "Fri", requests: 1890, tokens: 4800 },
+  { name: "Sat", requests: 2390, tokens: 3800 },
+  { name: "Sun", requests: 3490, tokens: 4300 },
+];
+
+const agentPerformance = [
+  { name: "CSO", speed: 85, accuracy: 92, usage: 45 },
+  { name: "CFO", speed: 92, accuracy: 98, usage: 30 },
+  { name: "COO", speed: 78, accuracy: 88, usage: 60 },
+  { name: "CMO", speed: 88, accuracy: 90, usage: 55 },
+];
+
+const sessions = [
+  { id: 1, title: "Market Entry Strategy", agents: ["CSO", "CFO"], progress: 65, status: "Active" },
+  { id: 2, title: "Budget Reallocation", agents: ["CFO", "COO"], progress: 40, status: "Pending Feedback" },
+  { id: 3, title: "Q1 Campaign Launch", agents: ["CMO", "CSO"], progress: 90, status: "Reviewing" },
+];
 
 const agents = [
-  { name: "CSO Agent", role: "Chief Strategy Officer", status: "active", lastMessage: "Completed market analysis for Q4", time: "2m ago", initials: "CS" },
-  { name: "CFO Agent", role: "Chief Financial Officer", status: "active", lastMessage: "Updated cash flow projections", time: "5m ago", initials: "CF" },
-  { name: "COO Agent", role: "Chief Operating Officer", status: "idle", lastMessage: "Process optimization review done", time: "1h ago", initials: "CO" },
-  { name: "CMO Agent", role: "Chief Marketing Officer", status: "active", lastMessage: "Campaign metrics report ready", time: "15m ago", initials: "CM" },
-];
-
-const recentDocs = [
-  { title: "Q4 Strategy Deck.pdf", type: "pdf", tags: ["Strategy", "Finance"], agent: "CSO", updated: "Today" },
-  { title: "Budget Forecast 2024.xlsx", type: "sheet", tags: ["Finance"], agent: "CFO", updated: "Yesterday" },
-  { title: "Ops Playbook v2.docx", type: "doc", tags: ["Operations"], agent: "COO", updated: "2 days ago" },
-  { title: "Brand Guidelines.pdf", type: "pdf", tags: ["Marketing"], agent: "CMO", updated: "3 days ago" },
-];
-
-const memoryHighlights = [
-  { agent: "CSO", content: "Key decision: Expand to APAC market in Q2", type: "decision", date: "Today, 9:00 AM" },
-  { agent: "CFO", content: "Risk flag: Currency exposure increased 15%", type: "risk", date: "Yesterday, 2:30 PM" },
-  { agent: "COO", content: "Task completed: Supply chain audit", type: "task", date: "Dec 1, 10:00 AM" },
+  { name: "CSO Agent", role: "Chief Strategy Officer", status: "active", lastMessage: "Completed market analysis for Q4", time: "2m ago", initials: "CS", color: "text-red-600", bg: "bg-red-100" },
+  { name: "CFO Agent", role: "Chief Financial Officer", status: "active", lastMessage: "Updated cash flow projections", time: "5m ago", initials: "CF", color: "text-orange-600", bg: "bg-orange-100" },
+  { name: "COO Agent", role: "Chief Operating Officer", status: "idle", lastMessage: "Process optimization review done", time: "1h ago", initials: "CO", color: "text-purple-600", bg: "bg-purple-100" },
+  { name: "CMO Agent", role: "Chief Marketing Officer", status: "active", lastMessage: "Campaign metrics report ready", time: "15m ago", initials: "CM", color: "text-blue-600", bg: "bg-blue-100" },
 ];
 
 export default function Dashboard() {
   const currentDate = new Date().toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div className="animate-fade-in p-2 space-y-6 relative min-h-[calc(100vh-4rem)]">
+    <div className="animate-fade-in p-6 space-y-8 relative min-h-[calc(100vh-4rem)] max-w-[1600px] mx-auto">
       {/* Coming Soon Overlay */}
       <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
         <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
@@ -54,192 +82,272 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Welcome Section with Gradient */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/40">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
-            Good Morning, Team
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+            Railway <span className="text-primary">Intelligence</span>
           </h1>
-          <p className="text-muted-foreground mt-1 flex items-center gap-2 text-sm">
-            <FontAwesomeIcon icon={faCalendarAlt} className="h-3.5 w-3.5" />
-            {currentDate}
+          <p className="text-muted-foreground text-lg flex items-center gap-2">
+            <FontAwesomeIcon icon={faCalendarAlt} className="h-4 w-4" />
+            {currentDate} • System is performing optimally
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2">
-            <FontAwesomeIcon icon={faSearch} className="h-3.5 w-3.5" />
-            Search
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-11 px-6 border-2 hover:bg-secondary/50">
+            <FontAwesomeIcon icon={faSearch} className="mr-2 h-4 w-4" />
+            Search Insights
           </Button>
-          <Button className="gap-2 bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
-            <FontAwesomeIcon icon={faPlus} className="h-3.5 w-3.5" />
-            New Project
+          <Button className="h-11 px-6 bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:shadow-primary/40 hover:scale-105 transition-all">
+            <FontAwesomeIcon icon={faPlus} className="mr-2 h-4 w-4" />
+            Launch New Session
           </Button>
         </div>
       </div>
 
-      {/* Modern KPI Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* KPI Stats Grid */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Active Agents", value: "4", change: "+1", icon: faRobot, color: "text-primary", bg: "bg-primary/10" },
-          { title: "Total Conversations", value: "1,248", change: "+12%", icon: faComments, color: "text-purple-500", bg: "bg-purple-500/10" },
-          { title: "Knowledge Assets", value: "843", change: "+24", icon: faBook, color: "text-amber-500", bg: "bg-amber-500/10" },
-          { title: "System Health", value: "98.9%", change: "Stable", icon: faHeartbeat, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+          { title: "Active Agents", value: "4", change: "+1", detail: "Ready to deploy", icon: faRobot, color: "text-primary", bg: "bg-primary/10" },
+          { title: "Total Requests", value: "8,241", change: "+18%", detail: "Last 30 days", icon: faZap, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { title: "Brain-Power", value: "94%", change: "+2%", detail: "Resource utilization", icon: faBrain, color: "text-purple-500", bg: "bg-purple-500/10" },
+          { title: "Security Level", value: "Enterprise", change: "Verified", detail: "End-to-end encrypted", icon: faShieldAlt, color: "text-emerald-500", bg: "bg-emerald-500/10" },
         ].map((stat, i) => (
-          <Card key={i} className="border-border/50 bg-card/50 backdrop-blur-sm hover:bg-card hover:shadow-md transition-all duration-200 group">
+          <Card key={i} className="relative overflow-hidden border-none bg-card/40 backdrop-blur-md shadow-sm hover:shadow-md transition-all group">
+            <div className={cn("absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity", stat.color)}>
+              <FontAwesomeIcon icon={stat.icon} className="h-20 w-20" />
+            </div>
             <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div className={cn("p-2 rounded-xl h-10 w-10 flex items-center justify-center", stat.bg, stat.color)}>
+              <div className="flex justify-between items-start mb-4">
+                <div className={cn("p-2.5 rounded-xl flex items-center justify-center", stat.bg, stat.color)}>
                   <FontAwesomeIcon icon={stat.icon} className="h-5 w-5" />
                 </div>
-                <Badge variant="secondary" className={cn("font-medium", stat.change.includes("+") ? "text-emerald-600 bg-emerald-500/10" : "text-muted-foreground")}>
+                <Badge variant="secondary" className={cn("font-bold px-2 py-0.5", stat.change.includes("+") ? "text-emerald-500 bg-emerald-500/10" : "text-primary bg-primary/10")}>
                   {stat.change}
                 </Badge>
               </div>
-              <div className="mt-4">
-                <h3 className="text-2xl font-bold tracking-tight">{stat.value}</h3>
-                <p className="text-sm text-muted-foreground font-medium">{stat.title}</p>
+              <div className="space-y-1">
+                <h3 className="text-3xl font-bold tracking-tight">{stat.value}</h3>
+                <p className="text-sm font-semibold text-foreground/80">{stat.title}</p>
+                <p className="text-xs text-muted-foreground">{stat.detail}</p>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Main Content Grid - Bento Box Style */}
-      <div className="grid gap-6 md:grid-cols-7 lg:grid-cols-7">
+      {/* Main Analytics Grid */}
+      <div className="grid gap-6 lg:grid-cols-3">
 
-        {/* Left Column - Agent Activity (Span 4) */}
-        <div className="col-span-1 md:col-span-4 space-y-6">
-          <Card className="border-border/60 shadow-sm overflow-hidden h-full flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 bg-muted/20 border-b border-border/40">
+        {/* Usage Analytics - Span 2 */}
+        <Card className="lg:col-span-2 border-none bg-card/40 backdrop-blur-md shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-bold">Inference Usage</CardTitle>
+              <CardDescription>Agent response frequency and token consumption</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="bg-background/50">Daily</Badge>
+              <Badge variant="secondary" className="bg-primary/20 text-primary border-none">Weekly</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={usageData}>
+                  <defs>
+                    <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '12px',
+                      boxShadow: 'var(--shadow-lg)'
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="requests"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorRequests)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Agent Metrics */}
+        <Card className="border-none bg-card/40 backdrop-blur-md shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold">Agent Efficiency</CardTitle>
+            <CardDescription>Metric comparison across active roles</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={agentPerformance}>
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '12px'
+                    }}
+                  />
+                  <Bar dataKey="speed" radius={[6, 6, 0, 0]} barSize={32}>
+                    {agentPerformance.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.4)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground font-medium">Avg. Response Time</span>
+                <span className="font-bold">1.2s</span>
+              </div>
+              <Progress value={85} className="h-1.5" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground font-medium">Model Accuracy</span>
+                <span className="font-bold">98.4%</span>
+              </div>
+              <Progress value={98} className="h-1.5" />
+            </div>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* Bottom Features Row */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+        {/* Active Brainstorming */}
+        <Card className="lg:col-span-2 border-none bg-card/40 backdrop-blur-md shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/30 pb-4">
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg font-semibold">Live Agent Activity</CardTitle>
-                <CardDescription>Real-time updates from your C-Suite agents</CardDescription>
+                <CardTitle className="text-lg font-bold">Active Collaborations</CardTitle>
+                <CardDescription>Multi-agent sessions currently in progress</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <FontAwesomeIcon icon={faEllipsisH} className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
+                View All <FontAwesomeIcon icon={faArrowRight} className="ml-2 h-3 w-3" />
               </Button>
-            </CardHeader>
-            <CardContent className="p-0 flex-1">
-              <div className="divide-y divide-border/40">
-                {agents.map((agent, i) => (
-                  <div key={i} className="p-4 hover:bg-muted/30 transition-colors group cursor-pointer flex gap-4 items-start">
-                    <div className="relative">
-                      <Avatar className="h-10 w-10 border border-border">
-                        <AvatarFallback className={cn(
-                          "font-bold text-xs",
-                          agent.name.includes("CSO") ? "bg-red-100 text-red-600" :
-                            agent.name.includes("CFO") ? "bg-orange-100 text-orange-600" :
-                              agent.name.includes("COO") ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
-                        )}>
-                          {agent.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      {agent.status === "active" && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
-                      )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/50">
+              {sessions.map((session) => (
+                <div key={session.id} className="p-4 hover:bg-muted/20 transition-colors flex items-center justify-between group">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                      <FontAwesomeIcon icon={faBrain} className="h-5 w-5" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="font-semibold text-sm text-foreground truncate">{agent.name}</h4>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{agent.time}</span>
-                      </div>
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{agent.role}</p>
-                      <p className="text-sm text-foreground/80 line-clamp-1">{agent.lastMessage}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-3 border-t border-border/40 bg-muted/10">
-                <Button variant="ghost" className="w-full text-xs text-muted-foreground hover:text-primary">
-                  View full activity log <FontAwesomeIcon icon={faArrowRight} className="ml-1 h-3 w-3" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Quick Actions & Docs (Span 3) */}
-        <div className="col-span-1 md:col-span-3 space-y-6">
-
-          {/* Quick Actions */}
-          <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/20">
-            <CardContent className="p-4 flex flex-col gap-3">
-              <h3 className="font-semibold text-sm text-primary mb-1 flex items-center gap-2">
-                <FontAwesomeIcon icon={faBolt} className="h-4 w-4" /> Quick Actions
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="h-auto py-3 justify-start bg-background/50 hover:bg-background border-primary/10 hover:border-primary/30 text-left">
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="font-medium text-xs">New Chat</span>
-                    <span className="text-[10px] text-muted-foreground">Start a conversation</span>
-                  </div>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 justify-start bg-background/50 hover:bg-background border-primary/10 hover:border-primary/30 text-left">
-                  <div className="flex flex-col items-start gap-1">
-                    <span className="font-medium text-xs">Upload Doc</span>
-                    <span className="text-[10px] text-muted-foreground">Add to knowledge</span>
-                  </div>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Docs */}
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <FontAwesomeIcon icon={faBook} className="h-4 w-4 text-muted-foreground" />
-                Recent Documents
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-border/40">
-                {recentDocs.map((doc, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 hover:bg-muted/30 cursor-pointer transition-colors group">
-                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-                      <FontAwesomeIcon icon={faFileAlt} className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{doc.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-border/60 text-muted-foreground">{doc.tags[0]}</Badge>
-                        <span className="text-[10px] text-muted-foreground">{doc.updated}</span>
+                    <div>
+                      <h4 className="font-bold text-sm">{session.title}</h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex -space-x-2">
+                          {session.agents.map((a, i) => (
+                            <Avatar key={i} className="h-6 w-6 border-2 border-background">
+                              <AvatarFallback className="text-[10px] font-bold bg-muted">{a}</AvatarFallback>
+                            </Avatar>
+                          ))}
+                        </div>
+                        <span className="text-xs text-muted-foreground">Collaboration: {session.agents.join(" & ")}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="p-2 border-t border-border/40">
-                <Button variant="ghost" size="sm" className="w-full text-xs h-8">
-                  View Knowledge Base
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Memory Highlights (Compact) */}
-          <div className="bg-secondary/20 rounded-xl p-4 border border-border/50">
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <FontAwesomeIcon icon={faHeartbeat} className="h-4 w-4 text-muted-foreground" />
-              Memory Stream
-            </h3>
-            <div className="space-y-4">
-              {memoryHighlights.map((mem, i) => (
-                <div key={i} className="relative pl-4 border-l-2 border-border/60 hover:border-primary transition-colors pb-1">
-                  <div className="absolute -left-[5px] top-0 h-2.5 w-2.5 rounded-full bg-background border-2 border-muted-foreground/40" />
-                  <p className="text-xs text-muted-foreground mb-0.5">{mem.date}</p>
-                  <p className="text-sm font-medium text-foreground/90">{mem.content}</p>
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 rounded">{mem.agent}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{mem.type}</span>
+                  <div className="text-right space-y-2 min-w-[120px]">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-muted-foreground">{session.status}</span>
+                      <span className="font-bold">{session.progress}%</span>
+                    </div>
+                    <Progress value={session.progress} className="h-1.5" />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-        </div>
+        {/* System Health & Resources */}
+        <Card className="border-none bg-card/40 backdrop-blur-md shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold">System Integrity</CardTitle>
+            <CardDescription>Real-time infrastructure health</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">LATENCY</p>
+                <p className="text-xl font-bold">42ms</p>
+                <div className="flex items-center gap-1 mt-1 text-emerald-500">
+                  <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold">STABLE</span>
+                </div>
+              </div>
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1 font-medium">UPTIME</p>
+                <p className="text-xl font-bold">99.98%</p>
+                <div className="flex items-center gap-1 mt-1 text-emerald-500">
+                  <div className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold">HEALTHY</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Resource Allocation</h5>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>Knowledge Store</span>
+                  <span>1.2GB / 5GB</span>
+                </div>
+                <Progress value={24} className="h-2 bg-muted-foreground/10" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>Action Queue</span>
+                  <span>14% Capacity</span>
+                </div>
+                <Progress value={14} className="h-2 bg-muted-foreground/10" />
+              </div>
+            </div>
+
+            <Button variant="outline" className="w-full border-dashed border-2 hover:border-primary hover:text-primary transition-all">
+              <FontAwesomeIcon icon={faMicrochip} className="mr-2 h-4 w-4" />
+              View Node Cluster
+            </Button>
+          </CardContent>
+        </Card>
+
       </div>
-    </div >
+    </div>
   );
 }

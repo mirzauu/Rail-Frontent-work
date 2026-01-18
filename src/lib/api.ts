@@ -67,7 +67,7 @@ export class ApiClient {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
-cd 
+  cd
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
   }
@@ -125,6 +125,20 @@ cd
       this.setUser(data.user);
     }
     return data;
+  }
+
+  async forgotPassword(email: string): Promise<Response> {
+    return this.fetch("api/v1/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(payload: { email: string; otp: string; new_password: string }): Promise<Response> {
+    return this.fetch("api/v1/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   }
 
   async streamChat(

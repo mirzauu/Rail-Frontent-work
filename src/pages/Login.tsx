@@ -133,7 +133,7 @@ export default function Login() {
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-900/50 z-10" />
                 <video
                     ref={videoRef}
-                    src="/Hailuo_Video_move the train on that track t_460128683442626561.mp4"
+                    src="/"
                     autoPlay
                     loop
                     muted
@@ -141,9 +141,9 @@ export default function Login() {
                     className="w-full h-full object-cover opacity-80"
                 />
                 <div className="absolute bottom-10 left-10 right-10 z-20 text-white">
-                    <h2 className="text-3xl font-bold mb-4">Transforming Rail Operations with AI</h2>
+                    <h2 className="text-3xl font-bold mb-4">RailVision AI</h2>
                     <p className="text-zinc-300 text-lg">
-                        Leverage advanced analytics and machine learning to optimize your railway infrastructure.
+                        
                     </p>
                 </div>
             </div>

@@ -282,8 +282,8 @@ const agentEmptyPrompts: Record<string, string> = {
 // AI Models
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
-  { id: "gpt", name: "GPT", description: "OpenAI GPT-4o", icon: Bot },
-  { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe },
+  { id: "gpt", name: "GPT", description: "OpenAI GPT-5.1", icon: Bot },
+  { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
   { id: "claude", name: "Claude", description: "Anthropic Claude 3.5 Sonnet", icon: Bot, disabled: true },
 ];
 
@@ -562,8 +562,10 @@ export default function Agents() {
         selectedModel === "auto"
           ? "string"
           : selectedModel === "gpt"
-            ? "openai/gpt-4.1-mini"
-            : selectedModel;
+            ? "openai/gpt-5.1"
+            : selectedModel === "perplexity"
+              ? "perplexity/sonar"
+              : selectedModel;
       const agentValue =
         selectedCapability === "auto"
           ? "auto"

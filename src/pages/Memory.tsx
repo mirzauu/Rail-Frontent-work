@@ -60,8 +60,8 @@ export default function Memory() {
         description="Browse and manage agent memories and organizational knowledge"
         actions={
           <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setViewMode(viewMode === "list" ? "graph" : "list")}
             >
@@ -238,9 +238,7 @@ export default function Memory() {
           </div>
         </div>
       ) : (
-        <div className="h-[calc(100vh-12rem)] animate-in fade-in zoom-in-95 duration-200">
-          <GraphView />
-        </div>
+        <GraphView />
       )}
 
       {/* Memory Detail Panel */}

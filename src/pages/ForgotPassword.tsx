@@ -3,23 +3,50 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Train, ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Train, ArrowLeft, Mail, CheckCircle2, Lock, KeyRound } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function ForgotPassword() {
+    const navigate = useNavigate();
+    const [step, setStep] = useState<"request" | "reset">("request");
     const [email, setEmail] = useState("");
+    const [otp, setOtp] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [isSubmitted, setIsSubmitted] = useState(false);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleRequestOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            await api.forgotPassword(email);
+            toast.success("OTP sent to your email!");
+            setStep("reset");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to send OTP");
+        } finally {
             setIsLoading(false);
-            setIsSubmitted(true);
-        }, 1500);
+        }
+    };
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newPassword !== confirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await api.resetPassword({ email, otp, new_password: newPassword });
+            toast.success("Password reset successfully! Please login.");
+            navigate("/login");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to reset password");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -27,35 +54,41 @@ export default function ForgotPassword() {
             <div className="w-full max-w-md">
                 {/* Logo and Brand */}
                 <div className="flex flex-col items-center mb-8">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 mb-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 mb-4 transition-transform hover:scale-105">
                         <Train className="h-9 w-9 text-primary-foreground" />
                     </div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">RailVision AI</h1>
+                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">RailVision AI</h1>
                     <p className="text-sm text-muted-foreground mt-1">AI-Powered C-Suite Intelligence</p>
                 </div>
 
-                {/* Forgot Password Card */}
-                <Card className="border-border/50 shadow-xl">
-                    <CardHeader className="space-y-1 pb-4">
-                        <CardTitle className="text-2xl font-bold text-center">
-                            {isSubmitted ? "Check your email" : "Forgot password?"}
+                {/* Main Card */}
+                <Card className="border-border/50 shadow-2xl bg-card/80 backdrop-blur-sm">
+                    <CardHeader className="space-y-1 pb-4 text-center">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2">
+                            {step === "request" ? (
+                                <Mail className="h-6 w-6 text-primary" />
+                            ) : (
+                                <Lock className="h-6 w-6 text-primary" />
+                            )}
+                        </div>
+                        <CardTitle className="text-2xl font-bold">
+                            {step === "request" ? "Forgot password?" : "Reset password"}
                         </CardTitle>
-                        <CardDescription className="text-center">
-                            {isSubmitted
-                                ? "We've sent password reset instructions to your email"
-                                : "No worries, we'll send you reset instructions"}
+                        <CardDescription>
+                            {step === "request"
+                                ? "Enter your email and we'll send you an OTP."
+                                : "Enter the OTP sent to your email and your new password."}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {!isSubmitted ? (
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Email Field */}
+                        {step === "request" ? (
+                            <form onSubmit={handleRequestOtp} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="email" className="text-sm font-medium">
-                                        Email
+                                    <Label htmlFor="email" className="text-sm font-semibold">
+                                        Work Email
                                     </Label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <div className="relative group">
+                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                         <Input
                                             id="email"
                                             type="email"
@@ -63,34 +96,32 @@ export default function ForgotPassword() {
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
-                                            className="h-11 pl-10"
+                                            className="h-11 pl-10 focus-visible:ring-primary/20 transition-all"
                                             disabled={isLoading}
                                         />
                                     </div>
                                 </div>
 
-                                {/* Submit Button */}
                                 <Button
                                     type="submit"
-                                    className="w-full h-11 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all"
+                                    className="w-full h-11 text-base font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
                                         <div className="flex items-center gap-2">
                                             <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Sending...
+                                            Requesting OTP...
                                         </div>
                                     ) : (
-                                        "Reset password"
+                                        "Send OTP"
                                     )}
                                 </Button>
 
-                                {/* Back to Login */}
-                                <Link to="/login">
+                                <Link to="/login" className="block">
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        className="w-full h-11 text-base"
+                                        className="w-full h-11 text-base hover:bg-muted/50"
                                         disabled={isLoading}
                                     >
                                         <ArrowLeft className="h-4 w-4 mr-2" />
@@ -99,54 +130,92 @@ export default function ForgotPassword() {
                                 </Link>
                             </form>
                         ) : (
-                            <div className="space-y-6">
-                                {/* Success Icon */}
-                                <div className="flex justify-center">
-                                    <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-3">
-                                        <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+                            <form onSubmit={handleResetPassword} className="space-y-5">
+                                <div className="space-y-2">
+                                    <Label htmlFor="otp" className="text-sm font-semibold">
+                                        Verification OTP
+                                    </Label>
+                                    <div className="relative group">
+                                        <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                        <Input
+                                            id="otp"
+                                            type="text"
+                                            placeholder="Enter 6-digit code"
+                                            value={otp}
+                                            onChange={(e) => setOtp(e.target.value)}
+                                            required
+                                            className="h-11 pl-10 focus-visible:ring-primary/20 transition-all"
+                                            disabled={isLoading}
+                                        />
                                     </div>
                                 </div>
 
-                                {/* Success Message */}
-                                <div className="text-center space-y-2">
-                                    <p className="text-sm text-muted-foreground">
-                                        We sent a password reset link to
-                                    </p>
-                                    <p className="text-sm font-semibold text-foreground">{email}</p>
+                                <div className="space-y-2">
+                                    <Label htmlFor="newPassword" className="text-sm font-semibold">
+                                        New Password
+                                    </Label>
+                                    <div className="relative group">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                        <Input
+                                            id="newPassword"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            required
+                                            className="h-11 pl-10 focus-visible:ring-primary/20 transition-all"
+                                            disabled={isLoading}
+                                        />
+                                    </div>
                                 </div>
 
-                                {/* Instructions */}
-                                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                                    <p className="text-sm font-medium">Didn't receive the email?</p>
-                                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                                        <li>Check your spam or junk folder</li>
-                                        <li>Make sure you entered the correct email</li>
-                                        <li>Wait a few minutes and check again</li>
-                                    </ul>
+                                <div className="space-y-2">
+                                    <Label htmlFor="confirmPassword" className="text-sm font-semibold">
+                                        Confirm New Password
+                                    </Label>
+                                    <div className="relative group">
+                                        <CheckCircle2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                        <Input
+                                            id="confirmPassword"
+                                            type="password"
+                                            placeholder="••••••••"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            required
+                                            className="h-11 pl-10 focus-visible:ring-primary/20 transition-all"
+                                            disabled={isLoading}
+                                        />
+                                    </div>
                                 </div>
 
-                                {/* Resend Button */}
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="w-full h-11"
-                                    onClick={() => setIsSubmitted(false)}
-                                >
-                                    Try another email
-                                </Button>
+                                <div className="pt-2 space-y-3">
+                                    <Button
+                                        type="submit"
+                                        className="w-full h-11 text-base font-bold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        disabled={isLoading}
+                                    >
+                                        {isLoading ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Resetting Password...
+                                            </div>
+                                        ) : (
+                                            "Update Password"
+                                        )}
+                                    </Button>
 
-                                {/* Back to Login */}
-                                <Link to="/login">
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        className="w-full h-11 text-base"
+                                        className="w-full h-11 text-base hover:bg-muted/50"
+                                        onClick={() => setStep("request")}
+                                        disabled={isLoading}
                                     >
                                         <ArrowLeft className="h-4 w-4 mr-2" />
-                                        Back to login
+                                        Resend OTP
                                     </Button>
-                                </Link>
-                            </div>
+                                </div>
+                            </form>
                         )}
                     </CardContent>
                 </Card>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -29,7 +29,9 @@ import {
   Folder,
   Tag,
   Bot,
+  Network,
 } from "lucide-react";
+import { GraphView } from "@/components/shared/GraphView";
 import { cn } from "@/lib/utils";
 
 type DocumentItem = {
@@ -85,6 +87,7 @@ export default function Knowledge() {
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadScope, setUploadScope] = useState("organization");
   const [uploading, setUploading] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "graph">("list");
 
   // Compute dynamic folder counts and filtered docs
   const { folderStats, filteredDocs } = useMemo(() => {
@@ -120,6 +123,10 @@ export default function Knowledge() {
               <Link2 className="mr-2 h-4 w-4" />
               Connect Source
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setViewMode(viewMode === "list" ? "graph" : "list")}>
+              <Network className="mr-2 h-4 w-4" />
+              {viewMode === "list" ? "Graph View" : "List View"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setUploadOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Upload
@@ -132,102 +139,105 @@ export default function Knowledge() {
         }
       />
 
-      <div className="flex gap-6 min-h-[calc(100vh-12rem)]">
-        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Upload Document</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label>File</Label>
-                <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+      {viewMode === "graph" ? (
+        <GraphView />
+      ) : (
+        <div className="flex gap-6 min-h-[calc(100vh-12rem)]">
+          <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Document</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>File</Label>
+                  <Input type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title</Label>
+                  <Input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} placeholder="Optional title" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Scope</Label>
+                  <Select value={uploadScope} onValueChange={setUploadScope}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="organization">Organization</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} placeholder="Optional title" />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>Cancel</Button>
+                <Button
+                  onClick={async () => {
+                    if (!uploadFile || uploading) return;
+                    setUploading(true);
+                    try {
+                      const resp = await api.uploadDocument(uploadFile, {
+                        title: uploadTitle,
+                        scope: uploadScope,
+                        description: "",
+                        category: "",
+                        tags: "",
+                      });
+                      await resp.json();
+                      setUploadOpen(false);
+                      setUploadFile(null);
+                      setUploadTitle("");
+                      queryClient.invalidateQueries({ queryKey: ["documents"] });
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                  disabled={!uploadFile || uploading}
+                >
+                  {uploading ? "Uploading..." : "Upload"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          {/* Left Sidebar - Filters */}
+          <Card className="w-60 flex-shrink-0 overflow-hidden flex flex-col">
+            <CardContent className="p-4 flex-1 overflow-auto scrollbar-thin">
+              {/* Search */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input placeholder="Search docs..." className="pl-9" />
               </div>
-              <div className="space-y-2">
-                <Label>Scope</Label>
-                <Select value={uploadScope} onValueChange={setUploadScope}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="organization">Organization</SelectItem>
-                    <SelectItem value="project">Project</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>Cancel</Button>
-              <Button
-                onClick={async () => {
-                  if (!uploadFile || uploading) return;
-                  setUploading(true);
-                  try {
-                    const resp = await api.uploadDocument(uploadFile, {
-                      title: uploadTitle,
-                      scope: uploadScope,
-                      description: "",
-                      category: "",
-                      tags: "",
-                    });
-                    await resp.json();
-                    setUploadOpen(false);
-                    setUploadFile(null);
-                    setUploadTitle("");
-                    queryClient.invalidateQueries({ queryKey: ["documents"] });
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-                disabled={!uploadFile || uploading}
-              >
-                {uploading ? "Uploading..." : "Upload"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        {/* Left Sidebar - Filters */}
-        <Card className="w-60 flex-shrink-0 overflow-hidden flex flex-col">
-          <CardContent className="p-4 flex-1 overflow-auto scrollbar-thin">
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search docs..." className="pl-9" />
-            </div>
 
-            {/* Folders */}
-            <div className="mb-6">
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-                By Type
-              </h3>
-              <div className="space-y-1">
-                {folderStats.map((folder) => (
-                  <button
-                    key={folder.name}
-                    onClick={() => setActiveFolder(folder.name)}
-                    className={cn(
-                      "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
-                      activeFolder === folder.name
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <folder.icon className="h-4 w-4" />
-                      {folder.name}
-                    </div>
-                    <span className="text-xs text-muted-foreground">{folder.count}</span>
-                  </button>
-                ))}
+              {/* Folders */}
+              <div className="mb-6">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                  By Type
+                </h3>
+                <div className="space-y-1">
+                  {folderStats.map((folder) => (
+                    <button
+                      key={folder.name}
+                      onClick={() => setActiveFolder(folder.name)}
+                      className={cn(
+                        "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                        activeFolder === folder.name
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <folder.icon className="h-4 w-4" />
+                        {folder.name}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{folder.count}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Tags */}
-            {/* <div>
+              {/* Tags */}
+              {/* <div>
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Tag className="h-4 w-4" />
                 Tag Groups
@@ -244,66 +254,67 @@ export default function Knowledge() {
                 ))}
               </div>
             </div> */}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Main Content - Document List */}
-        <Card className="flex-1 flex flex-col">
-          <CardContent className="p-0">
-            <table className="w-full">
-              <thead className="sticky top-0 bg-card z-10">
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="p-4">Title</th>
-                  <th className="p-4">Tags</th>
-                  <th className="p-4">Scope</th>
-                  <th className="p-4">Source</th>
-                  <th className="p-4">Owner</th>
-                  <th className="p-4 text-right">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocs.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    onClick={() => setSelectedDoc(doc)}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        {getTypeIcon(doc.file_type)}
-                        <span className="font-medium text-foreground">{doc.title || doc.original_filename || doc.filename}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {(doc.tags || []).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="outline">{doc.scope}</Badge>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.storage_backend}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.uploaded_by || "—"}</td>
-                    <td className="p-4 text-right text-sm text-muted-foreground">
-                      <div className="flex items-center justify-end gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(doc.created_at).toLocaleString()}
-                      </div>
-                    </td>
+          {/* Main Content - Document List */}
+          <Card className="flex-1 flex flex-col">
+            <CardContent className="p-0">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-card z-10">
+                  <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                    <th className="p-4">Title</th>
+                    <th className="p-4">Tags</th>
+                    <th className="p-4">Scope</th>
+                    <th className="p-4">Source</th>
+                    <th className="p-4">Owner</th>
+                    <th className="p-4 text-right">Updated</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-      </div>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((doc) => (
+                    <tr
+                      key={doc.id}
+                      onClick={() => setSelectedDoc(doc)}
+                      className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {getTypeIcon(doc.file_type)}
+                          <span className="font-medium text-foreground">{doc.title || doc.original_filename || doc.filename}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-1.5 flex-wrap">
+                          {(doc.tags || []).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="outline">{doc.scope}</Badge>
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">{doc.storage_backend}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{doc.uploaded_by || "—"}</td>
+                      <td className="p-4 text-right text-sm text-muted-foreground">
+                        <div className="flex items-center justify-end gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(doc.created_at).toLocaleString()}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Document Detail Panel */}
       <SidePanel

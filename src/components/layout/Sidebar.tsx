@@ -60,11 +60,11 @@ export function Sidebar() {
   const user = api.getUser();
   const initials = user?.full_name
     ? user.full_name
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((n) => n[0]?.toUpperCase())
-        .join("")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase())
+      .join("")
     : "US";
 
   const handleLogout = () => {
@@ -85,28 +85,27 @@ export function Sidebar() {
       <button
         onClick={() => setCollapsed(!collapsed)}
         className={cn(
-          "flex items-center gap-3 py-5 transition-all hover:opacity-80",
+          "flex items-center gap-2 py-3 transition-all hover:opacity-80",
           collapsed ? "px-3 justify-center" : "px-5"
         )}
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary flex-shrink-0">
-          <Train className="h-5 w-5 text-primary-foreground" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary flex-shrink-0">
+          <Train className="h-4 w-4 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <span className="text-xl font-semibold text-gray-800 dark:text-white">
+          <span className="text-lg font-bold text-gray-800 dark:text-white tracking-tight">
             RailVision AI
           </span>
         )}
       </button>
 
-      {/* Dashboard Link */}
       {!collapsed && (
-        <div className="px-5 pb-4">
+        <div className="px-5 pb-2">
           <NavLink
             to="/"
             className={cn(
-              "flex items-center justify-center py-2 text-lg font-semibold transition-colors",
-              location.pathname === "/" ? "text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+              "flex items-center justify-center py-1.5 text-base font-semibold transition-colors border rounded-lg",
+              location.pathname === "/" ? "bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-transparent"
             )}
           >
             Dashboard
@@ -136,16 +135,16 @@ export function Sidebar() {
                   key={agent.id}
                   to={`/agents/${agent.id}`}
                   className={cn(
-                    "flex items-center gap-3 text-sm transition-all duration-200",
+                    "flex items-center gap-2 text-xs transition-all duration-200",
                     collapsed
-                      ? "justify-center rounded-lg p-2"
-                      : "rounded-full px-3 py-2.5",
+                      ? "justify-center rounded-lg p-1.5"
+                      : "rounded-lg px-2.5 py-1.5",
                     isAgentActive
                       ? "bg-primary text-white"
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/50"
                   )}
                 >
-                  <Avatar className={cn(collapsed ? "h-8 w-8" : "h-7 w-7")}>
+                  <Avatar className={cn(collapsed ? "h-6 w-6" : "h-5 w-5")}>
                     <AvatarFallback className={cn(
                       "text-xs font-medium",
                       isAgentActive ? "bg-primary-foreground/20 text-white" : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
@@ -199,13 +198,13 @@ export function Sidebar() {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+                      "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200",
                       isActive
                         ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/50"
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-4 w-4" />
                     <span className="flex-1 font-medium">{item.label}</span>
                   </NavLink>
                 );
@@ -233,13 +232,13 @@ export function Sidebar() {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+                      "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200",
                       isActive
                         ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/50"
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <item.icon className="h-4 w-4" />
                     <span className="flex-1 font-medium">{item.label}</span>
                   </NavLink>
                 );
@@ -256,13 +255,13 @@ export function Sidebar() {
             <Button
               variant="ghost"
               className={cn(
-                "w-full flex items-center gap-3 transition-all duration-200 hover:bg-gray-200/70 dark:hover:bg-gray-700/50",
-                collapsed ? "justify-center px-2" : "justify-start px-3 py-6"
+                "w-full flex items-center gap-2 transition-all duration-200 hover:bg-gray-200/70 dark:hover:bg-gray-700/50",
+                collapsed ? "justify-center px-2" : "justify-start px-2 py-4 h-auto"
               )}
             >
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-7 w-7">
                 <AvatarImage src={user?.avatar_url ?? ""} />
-                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
                   {initials}
                 </AvatarFallback>
               </Avatar>
