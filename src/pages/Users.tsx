@@ -18,15 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import { Search, UserPlus, MoreHorizontal, Clock, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +61,7 @@ const allPermissions = [
 export default function Users() {
   const [activeTab, setActiveTab] = useState("users");
   const [selectedRole, setSelectedRole] = useState<typeof roles[0] | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const { toast } = useToast();
   const { data: orgUsers } = useQuery<OrgUser[]>({
     queryKey: ["org-users"],
     queryFn: async () => {
@@ -84,51 +76,16 @@ export default function Users() {
         title="Users & Roles"
         description="Manage team access and permissions"
         actions={
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invite Team Member</DialogTitle>
-                <DialogDescription>
-                  Send an invitation to join your workspace
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <Input id="email" placeholder="colleague@company.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select defaultValue="staff">
-                    <SelectTrigger id="role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="developer">Developer</SelectItem>
-                      <SelectItem value="staff">Staff</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="note">Personal note (optional)</Label>
-                  <Input id="note" placeholder="Welcome to the team!" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setInviteOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={() => setInviteOpen(false)}>Send Invite</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button
+            size="sm"
+            onClick={() => toast({
+              title: "Invite User disabled",
+              description: "Please contact the developer to invite a new user.",
+            })}
+          >
+            <UserPlus className="mr-2 h-4 w-4" />
+            Invite User
+          </Button>
         }
       />
 

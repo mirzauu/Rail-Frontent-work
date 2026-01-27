@@ -35,7 +35,9 @@ import {
   Zap,
   Bot,
   Shield,
-  Layers
+  Layers,
+  Paperclip,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,6 +130,7 @@ interface Message {
   time: string;
   reasoning?: ReasoningStep[];
   tool_calls?: ToolCall[];
+  attachments?: File[];
 }
 
 interface HistoryMessage {
@@ -284,7 +287,7 @@ const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
   { id: "gpt", name: "GPT", description: "OpenAI GPT-5.1", icon: Bot },
   { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
-  { id: "claude", name: "Claude", description: "Anthropic Claude 3.5 Sonnet", icon: Bot, disabled: true },
+  { id: "claude", name: "Claude", description: "Anthropic Claude 3", icon: Bot, disabled: false },
 ];
 
 // Agent capabilities for each agent type
@@ -395,6 +398,21 @@ export default function Agents() {
   const [selectedModel, setSelectedModel] = useState("auto");
   const [selectedCapability, setSelectedCapability] = useState("auto");
   const [inputMessage, setInputMessage] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments(prev => [...prev, ...Array.from(e.target.files || [])]);
+      // Reset input so same file can be selected again if needed
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [expandedReasonings, setExpandedReasonings] = useState<Record<number, boolean>>({});
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
@@ -494,18 +512,22 @@ export default function Agents() {
     // Immediate scroll
     scroll();
 
-    // If streaming, extra scroll to ensure we catch rapid height changes
-    if (isStreaming) {
-      const timer = setTimeout(scroll, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [messages, isStreaming, agentId]);
+    // Use a small delay to catch rendering updates (markdown, reasoning expansion, etc.)
+    const timer = setTimeout(scroll, 100);
+    return () => clearTimeout(timer);
+  }, [messages, isStreaming, agentId, expandedReasonings, expandedSteps]);
 
   // Handle sending a message
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isStreaming) return;
+    if ((!inputMessage.trim() && attachments.length === 0) || isStreaming) return;
     const currentTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const userMessage: Message = { id: Date.now(), type: "user", content: inputMessage, time: currentTime };
+    const userMessage: Message = {
+      id: Date.now(),
+      type: "user",
+      content: inputMessage,
+      time: currentTime,
+      attachments: [...attachments]
+    };
     const assistantId = Date.now() + 1;
     const assistantMessage: Message = {
       id: assistantId,
@@ -517,6 +539,8 @@ export default function Agents() {
     };
     setMessages([...messages, userMessage, assistantMessage]);
     setIsStreaming(true);
+    setInputMessage("");
+    setAttachments([]);
     try {
       let projectId = selectedProjectId ?? null;
       if (isNewChat && !projectId) {
@@ -565,19 +589,30 @@ export default function Agents() {
             ? "openai/gpt-5.1"
             : selectedModel === "perplexity"
               ? "perplexity/sonar"
-              : selectedModel;
+              : selectedModel === "claude"
+                ? "anthropic/claude-3-haiku-20240307"
+                : selectedModel;
       const agentValue =
         selectedCapability === "auto"
           ? "auto"
           : selectedCapability.toLowerCase().replace(/-/g, "_");
-      const payload = {
-        query: inputMessage,
-        project_id: defaultProjectId,
-        framework: currentAgentKey,
-        model: modelValue,
-        agent: agentValue,
-        attachment: "",
-      };
+
+      const formData = new FormData();
+      formData.append("query", inputMessage);
+      formData.append("project_id", defaultProjectId);
+      formData.append("framework", currentAgentKey);
+      formData.append("model", modelValue);
+      formData.append("agent", agentValue);
+
+      if (attachments.length > 0) {
+        attachments.forEach(file => {
+          formData.append("file", file);
+        });
+      } else {
+        formData.append("file", "");
+      }
+
+      const payload = formData;
 
       const isToolCall = (v: unknown): v is ToolCall => {
         if (!v || typeof v !== "object") return false;
@@ -809,7 +844,7 @@ export default function Agents() {
 
         {/* Chat Content */}
         <ScrollArea className="flex-1 p-6">
-          <div className="max-w-[95%] mx-auto space-y-6 pb-40">
+          <div className="max-w-[95%] mx-auto space-y-6">
             {/* Conversation Messages */}
             {displayMessages.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
@@ -829,6 +864,7 @@ export default function Agents() {
                       content={message.content}
                       timestamp={message.time}
                       name="You"
+                      attachments={message.attachments}
                     />
                   );
                 } else {
@@ -929,7 +965,7 @@ export default function Agents() {
                   );
                 }
               }))}
-            <div ref={messagesEndRef} className="h-4" />
+            <div ref={messagesEndRef} className="h-40" />
           </div>
         </ScrollArea>
 
@@ -939,6 +975,21 @@ export default function Agents() {
             <div className="bg-[#f8fafc]/80 dark:bg-muted/50 border border-border rounded-xl overflow-hidden shadow-sm">
               {/* Input Field */}
               <div className="px-4 pt-3">
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-xs group">
+                        <span className="truncate max-w-[150px]">{file.name}</span>
+                        <button
+                          onClick={() => removeAttachment(index)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <input
                   type="text"
                   placeholder="Ask a follow-up"
@@ -953,29 +1004,28 @@ export default function Agents() {
               <div className="flex items-center justify-between px-3 py-2">
                 {/* Left side icons */}
                 <div className="flex items-center gap-1">
-                  {/* <Button
-                    size="icon"
-                    className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90"
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </Button>
-                  <div className="w-px h-5 bg-border mx-1" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                  </Button> */}
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Attach files</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
 
                 {/* Right side icons */}

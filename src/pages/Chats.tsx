@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, MessageSquare, Send } from "lucide-react";
+import { Search, MessageSquare, Send, Paperclip, X } from "lucide-react";
 import { ChatBubble } from "@/components/shared/ChatBubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  attachments?: File[];
 }
 
 const mockMessages: Record<number, Message[]> = {
@@ -53,8 +54,21 @@ export default function Chats() {
   const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setAttachments(prev => [...prev, ...Array.from(e.target.files || [])]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     if (selectedChatId) {
@@ -73,17 +87,19 @@ export default function Chats() {
   }, [messages, isStreaming]);
 
   const handleSendMessage = async () => {
-    if (!input.trim() || !selectedChatId) return;
+    if ((!input.trim() && attachments.length === 0) || !selectedChatId) return;
 
     const newMessage: Message = {
       id: Date.now(),
       role: "user",
       content: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      attachments: [...attachments]
     };
 
     setMessages(prev => [...prev, newMessage]);
     setInput("");
+    setAttachments([]);
     setIsStreaming(true);
 
     // Simulate streaming response
@@ -198,6 +214,7 @@ export default function Chats() {
                               timestamp={msg.timestamp}
                               name={msg.role === "assistant" ? selectedChat?.name : "You"}
                               isLoading={showTyping}
+                              attachments={msg.attachments}
                             />
                           );
                         })}
@@ -206,7 +223,36 @@ export default function Chats() {
               </div>
 
               <div className="p-4 border-t border-border mt-auto">
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-xs group">
+                        <span className="truncate max-w-[150px]">{file.name}</span>
+                        <button 
+                          onClick={() => removeAttachment(index)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <input
+                     type="file"
+                     multiple
+                     className="hidden"
+                     ref={fileInputRef}
+                     onChange={handleFileSelect}
+                   />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
                   <Input 
                     placeholder="Type your message..." 
                     value={input}
@@ -219,7 +265,7 @@ export default function Chats() {
                     }}
                     className="flex-1"
                   />
-                  <Button onClick={handleSendMessage} disabled={isStreaming || !input.trim()}>
+                  <Button onClick={handleSendMessage} disabled={isStreaming || (!input.trim() && attachments.length === 0)}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>

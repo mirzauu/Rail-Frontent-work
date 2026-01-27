@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server } from "lucide-react";
 import { useState } from "react";
 
 export interface ToolCall {
@@ -32,6 +32,7 @@ interface ChatBubbleProps {
   tool_calls?: ToolCall[];
   showToolPanel?: boolean;
   isLoading?: boolean;
+  attachments?: File[];
 }
 
 const TypingDots = () => {
@@ -48,7 +49,8 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const toolName = toolCall.tool_name.toLowerCase();
   const isThink = toolName === "think";
   const isSearch = toolName.includes("search") || toolName.includes("web");
-  const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT";
+  const isKnowledgeBase = toolName.includes("knowledge") || toolName.includes("kb") || toolName === "knowledge_base";
+  const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response;
 
   const [isOpen, setIsOpen] = useState(isThink ? !isCompleted : false);
 
@@ -59,18 +61,26 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
     }
   }, [isThink, isCompleted]);
 
-  // Extract info from summary
+  // Extract info from summary or direct properties
   const details = toolCall.tool_call_details?.summary;
-  const args = (details?.args as any) || {};
-  const result = (details?.result as any) || {};
+  const args = (details?.args as any) || (toolCall as any).args || {};
+  const result = (details?.result as any) || (toolCall as any).result || {};
 
   const title = isThink
     ? (isCompleted ? "Analysis Complete" : "Thinking...")
     : isSearch
       ? (isCompleted ? "Search Results" : "Searching...")
-      : `Tool: ${toolCall.tool_name}`;
+      : isKnowledgeBase
+        ? (isCompleted ? "Knowledge Base Insights" : "Consulting Knowledge Base...")
+        : `Tool: ${toolCall.tool_name}`;
 
-  const icon = isThink ? <Brain className="h-3 w-3" /> : isSearch ? <Globe className="h-3 w-3" /> : <Code className="h-3 w-3" />;
+  const icon = isThink
+    ? <Brain className="h-3 w-3" />
+    : isSearch
+      ? <Globe className="h-3 w-3" />
+      : isKnowledgeBase
+        ? <Database className="h-3 w-3" />
+        : <Code className="h-3 w-3" />;
 
   // Normalized content extracting
   let bodyContent: React.ReactNode = null;
@@ -89,7 +99,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
     );
   } else if (isSearch) {
     const query = args.query;
-    const content = result.content;
+    const content = result.content || (typeof result === 'string' ? result : '');
     bodyContent = (
       <div className="space-y-2 py-1 font-sans">
         {query && <div className="text-[11px] opacity-70">Query: {query}</div>}
@@ -100,10 +110,110 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         )}
       </div>
     );
+  } else if (isKnowledgeBase) {
+    const query = args.query || args.q;
+    const rawResult = toolCall.tool_response || result.content || (typeof result === 'string' ? result : '');
+
+    // Parse the strategic facts if present
+    let facts: any[] = [];
+    try {
+      if (rawResult) {
+        // More robust JSON array extraction
+        const start = rawResult.indexOf('[');
+        const end = rawResult.lastIndexOf(']');
+        if (start !== -1 && end !== -1 && end >= start) {
+          const jsonPart = rawResult.substring(start, end + 1);
+          facts = JSON.parse(jsonPart);
+        } else if (start !== -1) {
+          // Fallback: try to see if it's just a raw JSON array string that didn't have brackets in the index search correctly (unlikely but safe)
+          try {
+            const parsed = JSON.parse(rawResult);
+            if (Array.isArray(parsed)) facts = parsed;
+          } catch (e) { }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse KB facts", e, rawResult);
+    }
+
+    bodyContent = (
+      <div className="space-y-3 py-2 font-sans">
+        {query && (
+          <div className="flex items-center gap-2 text-[10px] font-medium opacity-70 bg-muted/50 px-2 py-1 rounded w-fit">
+            <Search className="h-2.5 w-2.5" />
+            Query: {query}
+          </div>
+        )}
+        {isCompleted ? (
+          facts.length > 0 ? (
+            <div className="grid gap-3 mt-2">
+              {facts.map((fact, idx) => (
+                <div key={idx} className="bg-card/50 border border-border/40 rounded-lg p-3 shadow-sm hover:shadow-md transition-all group/fact">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded bg-primary/10 text-primary">
+                        <Server className="h-3 w-3" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 leading-none mb-0.5">
+                          {fact.type || 'Entity'}
+                        </span>
+                        <span className="text-sm font-semibold text-foreground">{fact.name}</span>
+                      </div>
+                    </div>
+                    {fact.properties?.confidence && (
+                      <div className="flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full">
+                        <CheckCircle2 className="h-2.5 w-2.5" />
+                        {Math.round(fact.properties.confidence * 100)}%
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-2 border-t border-border/30">
+                    {Object.entries(fact.properties || {}).map(([key, value]) => {
+                      if (['confidence', 'name', 'normalized_name', 'source_doc_id', 'segment_ids', 'source_versions', 'created_at', 'type'].includes(key)) return null;
+                      if (value === null || value === undefined || value === "") return null;
+
+                      const displayKey = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+                      const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+
+                      return (
+                        <div key={key} className="flex flex-col gap-0.5">
+                          <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{displayKey}</span>
+                          <span className="text-[11px] text-foreground/80 leading-snug">
+                            {displayValue}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex items-center gap-2">
+              <Info className="h-3.3 w-3.5" />
+              {rawResult ? (
+                <div className="prose prose-xs dark:prose-invert">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rawResult}</ReactMarkdown>
+                </div>
+              ) : (
+                "No relevant facts found in the knowledge base."
+              )}
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse py-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Scanning database indexes...
+          </div>
+        )}
+      </div>
+    );
   } else {
     bodyContent = (
       <pre className="text-[10px] font-mono whitespace-pre-wrap py-1">
-        {JSON.stringify(details || toolCall.tool_call_details || {}, null, 2)}
+        {JSON.stringify(details || toolCall.tool_call_details || toolCall, null, 2)}
       </pre>
     );
   }
@@ -133,7 +243,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   );
 }
 
-export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading }: ChatBubbleProps) => {
+export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, attachments }: ChatBubbleProps) => {
   const isUser = role === "user";
 
   const normalizeTables = (text: string): string => {
@@ -212,6 +322,22 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
               isUser ? "prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground" : ""
             )}
           >
+            {attachments && attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3 not-prose">
+                {attachments.map((file, index) => (
+                  <div key={index} className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-xs max-w-full",
+                    isUser ? "bg-white/20 text-primary-foreground" : "bg-muted border border-border"
+                  )}>
+                    <FileText className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                    <span className="opacity-70 text-[10px]">
+                      ({(file.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {showTyping ? (
               <TypingDots />
             ) : (

@@ -142,16 +142,20 @@ export class ApiClient {
   }
 
   async streamChat(
-    payload: ChatStreamPayload,
+    payload: ChatStreamPayload | FormData,
     onDelta: (chunk: StreamDelta) => void
   ): Promise<void> {
     const url = this.baseUrl + "api/v1/conversations/chat/stream";
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+    const headers: Record<string, string> = {};
     const token = this.getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload) });
+
+    const body = payload instanceof FormData ? payload : JSON.stringify(payload);
+    if (!(payload instanceof FormData)) {
+        headers["Content-Type"] = "application/json";
+    }
+
+    const resp = await fetch(url, { method: "POST", headers, body });
     if (!resp.body) return;
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -219,6 +223,11 @@ export class ApiClient {
     }
     return resp;
   }
+
+  async getDashboard(): Promise<DashboardResponse> {
+    const resp = await this.fetch("api/v1/dashboard/");
+    return resp.json();
+  }
 }
 
 export const api = new ApiClient(BASE_URL);
@@ -247,4 +256,32 @@ export type StreamDelta = {
   response?: string;
   tool_calls?: unknown[];
   citations?: unknown[];
+};
+
+export type DashboardResponse = {
+  org_name: string;
+  plan_type: string;
+  subscription_status: string;
+  subscription_ends_at: string | null;
+  quotas: Record<string, {
+    used: number;
+    max: number;
+    unit: string;
+    percentage: number;
+  }>;
+  stats: {
+    total_conversations: number;
+    total_messages: number;
+    total_cost_usd: string;
+    avg_response_time_ms: number | null;
+    avg_satisfaction: number | null;
+  };
+  recent_activity: Array<{
+    id: string;
+    name: string;
+    type: 'conversation' | 'project';
+    updated_at: string;
+    status: string;
+  }>;
+  metadata: Record<string, unknown>;
 };
