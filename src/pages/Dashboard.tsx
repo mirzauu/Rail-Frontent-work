@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useNavigate } from "react-router-dom";
+import { Train, User, Lock, Bot, Database, Server } from "lucide-react";
 import {
   faRobot,
   faComments,
@@ -52,6 +54,7 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -82,11 +85,10 @@ export default function Dashboard() {
         <div className="relative">
           <div className="h-24 w-24 rounded-full border-t-4 border-b-4 border-primary animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <FontAwesomeIcon icon={faRobot} className="h-8 w-8 text-primary animate-pulse" />
+            <Train className="h-8 w-8 text-primary animate-pulse" />
           </div>
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight animate-pulse">Initializing Intelligence...</h2>
           <p className="text-muted-foreground animate-pulse delay-75">Synchronizing your organization metrics</p>
         </div>
       </div>
@@ -114,19 +116,37 @@ export default function Dashboard() {
   }
 
   const quotaItems = [
-    { key: 'users', label: 'Users', icon: faUsers, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { key: 'projects', label: 'Projects', icon: faProjectDiagram, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
-    { key: 'agents', label: 'AI Agents', icon: faRobot, color: 'text-primary', bg: 'bg-primary/10' },
-    { key: 'documents', label: 'Knowledge Base', icon: faBook, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { key: 'storage', label: 'Cloud Storage', icon: faDatabase, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-    { key: 'tokens', label: 'Tokens', icon: faCoins, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { key: 'users', label: 'Users', color: '#3b82f6' },
+    { key: 'agents', label: 'AI Agents', color: '#6366f1' },
+    { key: 'documents', label: 'Knowledge Base', color: '#10b981' },
+    { key: 'storage', label: 'Cloud Storage', color: '#f59e0b' },
+    { key: 'tokens', label: 'Tokens', color: '#8b5cf6' },
   ];
+
+  const chartData = quotaItems.map(item => {
+    const quota = data.quotas[item.key];
+    return {
+      name: item.label,
+      percentage: quota ? Math.min(quota.percentage, 100) : 0,
+      used: quota ? quota.used : 0,
+      max: quota ? quota.max : 0,
+      unit: quota ? quota.unit : '',
+      fill: item.color
+    };
+  });
 
   const mainStats = [
     { label: 'Total Conversations', value: data.stats.total_conversations, icon: faComments, detail: 'Lifetime interactions' },
     { label: 'Total Messages', value: data.stats.total_messages, icon: faBrain, detail: 'AI & User exchanges' },
-    { label: 'Estimated Cost', value: `$${data.stats.total_cost_usd}`, icon: faZap, detail: 'Resource consumption' },
-    { label: 'Avg. Response', value: data.stats.avg_response_time_ms ? `${data.stats.avg_response_time_ms}ms` : '---', icon: faClock, detail: 'System latency' },
+    { label: 'Avg. Response', value: '5.2 sec', icon: faClock, detail: 'System latency' },
+  ];
+
+  const agents = [
+    { name: "Michael", role: "CSO", icon: User, enabled: true, path: "/agents/cso", description: "Chief Security Officer" },
+    { name: "Sarah", role: "CTO", icon: User, enabled: false, path: "", description: "Chief Technology Officer" },
+    { name: "David", role: "CFO", icon: User, enabled: false, path: "", description: "Chief Financial Officer" },
+    { name: "Emily", role: "CMO", icon: User, enabled: false, path: "", description: "Chief Marketing Officer" },
+    { name: "James", role: "COO", icon: User, enabled: false, path: "", description: "Chief Operating Officer" },
   ];
 
   return (
@@ -174,70 +194,93 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Agents Section */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold tracking-tight">Active Agents</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {agents.map((agent) => (
+            <Card
+              key={agent.name}
+              className={cn(
+                "border-none transition-all duration-300 relative overflow-hidden",
+                agent.enabled
+                  ? "bg-card/60 hover:bg-primary/5 cursor-pointer hover:-translate-y-1 hover:shadow-lg ring-1 ring-primary/10"
+                  : "bg-muted/20 opacity-60 grayscale cursor-not-allowed"
+              )}
+              onClick={() => agent.enabled && navigate(agent.path)}
+            >
+              <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+                <div className={cn(
+                  "h-16 w-16 rounded-2xl flex items-center justify-center transition-transform duration-500",
+                  agent.enabled ? "bg-primary/10 text-primary group-hover:scale-110" : "bg-muted text-muted-foreground"
+                )}>
+                  <agent.icon className="h-8 w-8" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-lg">{agent.name}</h3>
+                  <Badge variant={agent.enabled ? "default" : "outline"} className="text-[10px] uppercase">
+                    {agent.role}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5em]">
+                  {agent.description}
+                </p>
+                {agent.enabled && (
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-primary/20">
+                    <div className="h-full bg-primary w-1/3 animate-pulse" />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Quotas Panel */}
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold tracking-tight">Resource Consumption</h2>
-            <Button variant="ghost" size="sm" className="text-primary font-bold hover:bg-primary/5">
-              Upgrade Limits <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="ml-2 h-3 w-3" />
-            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quotaItems.map((item) => {
-              const quota = data.quotas[item.key];
-              if (!quota) return null;
-              const isOverLimit = quota.percentage > 100;
-
-              return (
-                <Card key={item.key} className="border-none bg-card/60 backdrop-blur-md hover:bg-card/80 transition-colors group">
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={cn("p-2 rounded-lg", item.bg, item.color)}>
-                          <FontAwesomeIcon icon={item.icon} className="h-4 w-4" />
-                        </div>
-                        <span className="font-bold text-sm tracking-tight">{item.label}</span>
-                      </div>
-                      <Badge variant={isOverLimit ? "destructive" : "outline"} className={cn("font-bold", !isOverLimit && "border-none bg-muted/50")}>
-                        {quota.percentage}%
-                      </Badge>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-end">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-2xl font-bold">{quota.used}</span>
-                          <span className="text-xs font-medium text-muted-foreground">/ {quota.max} {quota.unit}</span>
-                        </div>
-                        {isOverLimit && (
-                          <span className="text-[10px] font-black text-destructive uppercase animate-bounce flex items-center gap-1">
-                            <FontAwesomeIcon icon={faExclamationTriangle} /> Limit Exceeded
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={cn(
-                            "absolute left-0 top-0 h-full transition-all duration-1000 ease-out rounded-full",
-                            isOverLimit ? "bg-destructive" : "bg-primary"
-                          )}
-                          style={{ width: `${Math.min(quota.percentage, 100)}%` }}
-                        />
-                        {isOverLimit && (
-                          <div
-                            className="absolute left-0 top-0 h-full bg-destructive/30 animate-pulse"
-                            style={{ width: '100%' }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <Card className="border-none bg-card/60 backdrop-blur-md">
+            <CardContent className="p-6">
+              <div className="h-[350px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis type="number" hide domain={[0, 100]} />
+                    <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="rounded-lg border bg-background p-3 shadow-lg">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-sm font-bold">{data.name}</span>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground">{data.percentage}%</span>
+                                  <span>({data.used} / {data.max} {data.unit})</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="percentage" radius={[0, 4, 4, 0]} barSize={24} background={{ fill: 'hsl(var(--muted)/0.1)', radius: [0, 4, 4, 0] }}>
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Activity Section */}
           <div className="pt-4">
@@ -296,17 +339,6 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="p-4 rounded-xl bg-orange-500/5 border border-orange-500/10 space-y-2">
-                <div className="flex items-center gap-2 text-orange-600">
-                  <FontAwesomeIcon icon={faExclamationTriangle} className="h-3 w-3" />
-                  <span className="text-xs font-bold uppercase">Critical Alert</span>
-                </div>
-                <p className="text-sm font-medium">Project capacity is over-limit. Some automated flows might be paused.</p>
-                <div className="pt-1">
-                  <Button variant="outline" size="sm" className="h-7 text-[10px] border-orange-200 hover:bg-orange-100 text-orange-700 font-bold">Manage Projects</Button>
-                </div>
-              </div>
-
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">System Metrics</h4>
                 {[

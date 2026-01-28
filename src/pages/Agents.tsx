@@ -286,8 +286,8 @@ const agentEmptyPrompts: Record<string, string> = {
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
   { id: "gpt", name: "GPT", description: "OpenAI GPT-5.1", icon: Bot },
-  { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
   { id: "claude", name: "Claude", description: "Anthropic Claude 3", icon: Bot, disabled: false },
+  { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
 ];
 
 // Agent capabilities for each agent type
@@ -1004,6 +1004,11 @@ export default function Agents() {
               <div className="flex items-center justify-between px-3 py-2">
                 {/* Left side icons */}
                 <div className="flex items-center gap-1">
+                  
+                </div>
+
+                {/* Right side icons */}
+                <div className="flex items-center gap-1">
                   <input
                     type="file"
                     multiple
@@ -1026,10 +1031,6 @@ export default function Agents() {
                       <p>Attach files</p>
                     </TooltipContent>
                   </Tooltip>
-                </div>
-
-                {/* Right side icons */}
-                <div className="flex items-center gap-1">
                   <DropdownMenu>
                     <Tooltip>
                       <TooltipTrigger asChild>

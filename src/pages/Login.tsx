@@ -7,20 +7,15 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
+import { LoginMemoryGraph } from "@/components/LoginMemoryGraph";
+
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const videoRef = useRef<HTMLVideoElement>(null);
     const navigate = useNavigate();
     const { toast } = useToast();
-
-    useEffect(() => {
-        if (videoRef.current) {
-            videoRef.current.playbackRate = 0.5;
-        }
-    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -129,23 +124,9 @@ export default function Login() {
             </div>
 
             {/* Right Side - Image/Animation */}
-            <div className="hidden lg:flex relative bg-zinc-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-900/50 z-10" />
-                <video
-                    ref={videoRef}
-                    src="/"
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover opacity-80"
-                />
-                <div className="absolute bottom-10 left-10 right-10 z-20 text-white">
-                    <h2 className="text-3xl font-bold mb-4">RailVision AI</h2>
-                    <p className="text-zinc-300 text-lg">
-                        
-                    </p>
-                </div>
+            <div className="hidden lg:flex relative bg-zinc-900 overflow-hidden items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-zinc-900/50 z-10 pointer-events-none" />
+                <LoginMemoryGraph />
             </div>
         </div>
     );

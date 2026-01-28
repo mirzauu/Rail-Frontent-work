@@ -183,7 +183,7 @@ export default function Knowledge() {
                   <th className="p-4">Tags</th>
                   <th className="p-4">Scope</th>
                   <th className="p-4">Source</th>
-                  <th className="p-4">Owner</th>
+                  <th className="p-4">Uploader</th>
                   <th className="p-4 text-right">Updated</th>
                 </tr>
               </thead>
