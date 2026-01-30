@@ -46,6 +46,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
+import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -285,7 +286,7 @@ const agentEmptyPrompts: Record<string, string> = {
 // AI Models
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
-  { id: "gpt", name: "GPT", description: "OpenAI GPT-5.1", icon: Bot },
+  { id: "gpt", name: "GPT", description: "OpenAI GPT-5.2", icon: Bot },
   { id: "claude", name: "Claude", description: "Anthropic Claude 3", icon: Bot, disabled: false },
   { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
 ];
@@ -414,6 +415,42 @@ export default function Agents() {
   };
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [currentPPT, setCurrentPPT] = useState<PPT | null>(null);
+  const [isPPTLargeView, setIsPPTLargeView] = useState(false);
+
+  useEffect(() => {
+    let latestPpt: PPT | null = null;
+
+    messages.forEach(m => {
+      m.tool_calls?.forEach(tc => {
+        if (tc.tool_name === 'create_ppt') {
+          latestPpt = {
+            title: tc.tool_call_details?.summary?.args?.title || 'New Presentation',
+            slides: []
+          };
+        } else if (tc.tool_name === 'add_slide' && latestPpt) {
+          const args = tc.tool_call_details?.summary?.args;
+          if (args) {
+            latestPpt.slides.push({
+              title: args.title || 'Untitled Slide',
+              content: args.content || '',
+              slide_type: args.slide_type || 'text'
+            });
+          }
+        }
+      });
+    });
+
+    if (latestPpt) {
+      setCurrentPPT(latestPpt);
+      const lastMsg = messages[messages.length - 1];
+      const hasRecentPptTool = lastMsg?.tool_calls?.some(tc => ['create_ppt', 'add_slide'].includes(tc.tool_name));
+      if (hasRecentPptTool && !isRightSidebarOpen) {
+        setIsRightSidebarOpen(true);
+      }
+    }
+  }, [messages, isRightSidebarOpen]);
+
   const [expandedReasonings, setExpandedReasonings] = useState<Record<number, boolean>>({});
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -484,6 +521,20 @@ export default function Agents() {
       const r = await api.fetch(`api/v1/conversations/history/${firstId}`);
       const d = await r.json();
       setConversationId(d?.conversation_id ?? null);
+      if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
+        const p = d.presentations[0];
+        setCurrentPPT({
+          title: p.title,
+          slides: p.slides.map((s: any) => ({
+            title: s.title,
+            content: s.content,
+            slide_type: s.slide_type
+          }))
+        });
+        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+      } else {
+        setCurrentPPT(null);
+      }
       const arr = Array.isArray(d?.messages) ? d.messages : [];
       const conv = arr.map((m: HistoryMessage, idx: number) => ({
         id: Date.now() + idx,
@@ -606,10 +657,11 @@ export default function Agents() {
 
       if (attachments.length > 0) {
         attachments.forEach(file => {
-          formData.append("file", file);
+          // ONLY append file if it exists
+          if (file && file instanceof File) {
+            formData.append("file", file);
+          }
         });
-      } else {
-        formData.append("file", "");
       }
 
       const payload = formData;
@@ -742,6 +794,7 @@ export default function Agents() {
                 setMessages([]);
                 setConversationId(null);
                 setSelectedProjectId(null);
+                setCurrentPPT(null);
               }}
             >
               <Plus className="h-4 w-4" />
@@ -774,6 +827,20 @@ export default function Agents() {
                     const r = await api.fetch(`api/v1/conversations/history/${chat.projectId}`);
                     const d = await r.json();
                     setConversationId(d?.conversation_id ?? null);
+                    if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
+                      const p = d.presentations[0];
+                      setCurrentPPT({
+                        title: p.title,
+                        slides: p.slides.map((s: any) => ({
+                          title: s.title,
+                          content: s.content,
+                          slide_type: s.slide_type
+                        }))
+                      });
+                      if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                    } else {
+                      setCurrentPPT(null);
+                    }
                     const arr = Array.isArray(d?.messages) ? d.messages : [];
                     const conv = arr.map((m: HistoryMessage, idx: number) => ({
                       id: Date.now() + idx,
@@ -1004,7 +1071,7 @@ export default function Agents() {
               <div className="flex items-center justify-between px-3 py-2">
                 {/* Left side icons */}
                 <div className="flex items-center gap-1">
-                  
+
                 </div>
 
                 {/* Right side icons */}
@@ -1149,12 +1216,14 @@ export default function Agents() {
         className={cn(
           "flex flex-col border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
           isRightSidebarOpen
-            ? "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
+            ? isPPTLargeView && currentPPT
+              ? "w-[60vw] lg:w-[70vw] flex-shrink-0 border-l"
+              : currentPPT ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-border/50 h-[60px] min-w-[300px]">
-          <h2 className="font-semibold text-lg">Context</h2>
+          <h2 className="font-semibold text-lg">{currentPPT ? "Presentation" : "Context"}</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -1166,103 +1235,113 @@ export default function Agents() {
         </div>
 
         <div className="flex-1 relative overflow-hidden">
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
-            <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
-              <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Coming Soon
-              </span>
-            </div>
-          </div>
-          <ScrollArea className="h-full p-4 min-w-[300px]">
-            <div className="space-y-6">
-              {/* Context Note */}
-              <div className="bg-secondary/30 rounded-lg p-3 text-sm text-foreground/80 leading-relaxed">
-                Discussion focusing on budget breakdown and resource allocation for Q1-Q2 initiatives across digital transformation, customer experience, and strategic partnerships.
-              </div>
-
-              {/* Docs Section */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="font-semibold text-sm">Docs</span>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer">
-                    <ChevronDown className="h-4 w-4" />
-                    <span className="text-sm font-medium">Thread Summary</span>
-                  </div>
-
-                  <div className="pl-2 space-y-2 mt-2">
-                    {[
-                      { name: "Q1-Q2 Financial Model.xlsx", type: "spreadsheet" },
-                      { name: "Talent Acquisition Strategy.pdf", type: "pdf" },
-                      { name: "Project Timeline.doc", type: "doc" }
-                    ].map((doc, i) => {
-                      // Determine color based on file type
-                      const getFileColor = (type: string) => {
-                        switch (type) {
-                          case 'pdf':
-                            return 'text-red-500';
-                          case 'spreadsheet':
-                            return 'text-green-500';
-                          case 'doc':
-                            return 'text-blue-500';
-                          default:
-                            return 'text-primary';
-                        }
-                      };
-
-                      return (
-                        <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                          <FileText className={cn("h-4 w-4", getFileColor(doc.type))} />
-                          <span className="text-sm text-foreground/80 truncate">{doc.name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+          {currentPPT ? (
+            <PPTViewer
+              ppt={currentPPT}
+              isLargeView={isPPTLargeView}
+              onToggleLargeView={() => setIsPPTLargeView(!isPPTLargeView)}
+            />
+          ) : (
+            <>
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
+                <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
+                  <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                    Coming Soon
+                  </span>
                 </div>
               </div>
+              <ScrollArea className="h-full p-4 min-w-[300px]">
+                <div className="space-y-6">
+                  {/* Context Note */}
+                  <div className="bg-secondary/30 rounded-lg p-3 text-sm text-foreground/80 leading-relaxed">
+                    Discussion focusing on budget breakdown and resource allocation for Q1-Q2 initiatives across digital transformation, customer experience, and strategic partnerships.
+                  </div>
 
-              <Separator />
+                  {/* Docs Section */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="font-semibold text-sm">Docs</span>
+                    </div>
 
-              {/* Related Memory */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="font-semibold text-sm">Related Memory</span>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { text: "Budget Planning Session (Dec 1)", type: "planning" },
-                    { text: "Talent Network Review (Nov 28)", type: "review" },
-                    { text: "Infrastructure Assessment (Nov 25)", type: "assessment" }
-                  ].map((memory, i) => {
-                    // Determine color based on memory type
-                    const getMemoryColor = (type: string) => {
-                      switch (type) {
-                        case 'planning':
-                          return 'text-purple-500';
-                        case 'review':
-                          return 'text-amber-500';
-                        case 'assessment':
-                          return 'text-cyan-500';
-                        default:
-                          return 'text-orange-400';
-                      }
-                    };
-
-                    return (
-                      <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                        <FileText className={cn("h-4 w-4 mt-0.5 flex-shrink-0", getMemoryColor(memory.type))} />
-                        <span className="text-sm text-foreground/80 leading-tight line-clamp-2">
-                          {memory.text}
-                        </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer">
+                        <ChevronDown className="h-4 w-4" />
+                        <span className="text-sm font-medium">Thread Summary</span>
                       </div>
-                    );
-                  })}
+
+                      <div className="pl-2 space-y-2 mt-2">
+                        {[
+                          { name: "Q1-Q2 Financial Model.xlsx", type: "spreadsheet" },
+                          { name: "Talent Acquisition Strategy.pdf", type: "pdf" },
+                          { name: "Project Timeline.doc", type: "doc" }
+                        ].map((doc, i) => {
+                          // Determine color based on file type
+                          const getFileColor = (type: string) => {
+                            switch (type) {
+                              case 'pdf':
+                                return 'text-red-500';
+                              case 'spreadsheet':
+                                return 'text-green-500';
+                              case 'doc':
+                                return 'text-blue-500';
+                              default:
+                                return 'text-primary';
+                            }
+                          };
+
+                          return (
+                            <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                              <FileText className={cn("h-4 w-4", getFileColor(doc.type))} />
+                              <span className="text-sm text-foreground/80 truncate">{doc.name}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Related Memory */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="font-semibold text-sm">Related Memory</span>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { text: "Budget Planning Session (Dec 1)", type: "planning" },
+                        { text: "Talent Network Review (Nov 28)", type: "review" },
+                        { text: "Infrastructure Assessment (Nov 25)", type: "assessment" }
+                      ].map((memory, i) => {
+                        // Determine color based on memory type
+                        const getMemoryColor = (type: string) => {
+                          switch (type) {
+                            case 'planning':
+                              return 'text-purple-500';
+                            case 'review':
+                              return 'text-amber-500';
+                            case 'assessment':
+                              return 'text-cyan-500';
+                            default:
+                              return 'text-orange-400';
+                          }
+                        };
+
+                        return (
+                          <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
+                            <FileText className={cn("h-4 w-4 mt-0.5 flex-shrink-0", getMemoryColor(memory.type))} />
+                            <span className="text-sm text-foreground/80 leading-tight line-clamp-2">
+                              {memory.text}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </ScrollArea>
+              </ScrollArea>
+            </>
+          )}
         </div>
       </div>
     </div>
