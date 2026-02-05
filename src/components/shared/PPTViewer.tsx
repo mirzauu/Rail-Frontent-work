@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Presentation, Download, Maximize2, Minimize2, Play, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { ChevronLeft, ChevronRight, Presentation, Maximize2, Minimize2, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import pptxgen from "pptxgenjs";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+// imports removed
+import { FileDown } from "lucide-react";
 
 export interface Slide {
     title: string;
@@ -25,6 +29,9 @@ interface PPTViewerProps {
 export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTViewerProps) {
     const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const slideRef = useRef<HTMLDivElement>(null);
+    const allSlidesRef = useRef<HTMLDivElement>(null);
 
     const nextSlide = useCallback(() => {
         if (currentSlideIndex < ppt.slides.length - 1) {
@@ -54,7 +61,7 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [nextSlide, prevSlide, isFullScreen]);
 
-    const handleDownload = () => {
+    const handleDownloadPPTX = () => {
         const pres = new pptxgen();
         pres.layout = 'LAYOUT_16x9';
 
@@ -62,7 +69,7 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
             const s = pres.addSlide();
             s.background = { color: 'FFFFFF' };
 
-            // Title (Fixed coordinates)
+            // Title
             s.addText(slide.title, {
                 x: 0.5,
                 y: 0.3,
@@ -71,50 +78,25 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
                 fontSize: 24,
                 bold: true,
                 color: '2D3748',
-                align: pres.AlignH.left,
-                valign: pres.AlignV.middle,
             });
 
-            // Separator line
-            s.addShape(pres.ShapeType.rect, {
+            // Content - Clean formatting for PPTX
+            // Remove markdown bullet points, bold markers, etc for the raw text version
+            const cleanContent = slide.content
+                .replace(/^[-*]\s+/gm, '') // Remove bullets
+                .replace(/\*\*/g, '')      // Remove bold markers
+                .replace(/#/g, '');        // Remove heading markers
+
+            s.addText(cleanContent, {
                 x: 0.5,
-                y: 1.0,
+                y: 1.2,
                 w: 9.0,
-                h: 0.015,
-                fill: { color: 'ED8936' },
+                h: 3.8,
+                fontSize: 14,
+                color: '4A5568',
+                valign: pres.AlignV.top,
+                wrap: true
             });
-
-            // Content (Fixed coordinates, safe font size)
-            if (slide.slide_type === 'bullet') {
-                const lines = slide.content.split('\n')
-                    .map(line => line.replace(/^[•\-\*]\s*|^\d+\.\s*/, '').trim())
-                    .filter(line => line.length > 0);
-
-                s.addText(
-                    lines.map(line => ({ text: line, options: { bullet: true, indentLevel: 0, color: '4A5568' } })),
-                    {
-                        x: 0.5,
-                        y: 1.2,
-                        w: 9.0,
-                        h: 3.8,
-                        fontSize: 14,
-                        color: '4A5568',
-                        valign: pres.AlignV.top,
-                        lineSpacing: 22,
-                    }
-                );
-            } else {
-                s.addText(slide.content, {
-                    x: 0.5,
-                    y: 1.2,
-                    w: 9.0,
-                    h: 3.8,
-                    fontSize: 14,
-                    color: '4A5568',
-                    valign: pres.AlignV.top,
-                    align: pres.AlignH.left,
-                });
-            }
 
             // Footer
             s.addText("RAILVISION STRATEGY", {
@@ -141,14 +123,17 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
         pres.writeFile({ fileName: `${ppt.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pptx` });
     };
 
-    const currentSlide = ppt.slides[currentSlideIndex];
+// handleDownloadPDF removed
+
+    const presentationSlides = ppt.slides || [];
+    const activePresentationSlide = presentationSlides[currentSlideIndex];
 
     const PresentationContent = ({ full = false }: { full?: boolean }) => (
         <div className={cn(
             "flex-1 min-h-0 relative flex flex-col bg-white dark:bg-slate-900 overflow-hidden select-none",
             full && "fixed inset-0 z-[100] h-screen w-screen"
         )}>
-            {ppt.slides.length > 0 ? (
+            {presentationSlides.length > 0 && activePresentationSlide ? (
                 <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in duration-300">
                     {full && (
                         <div className="absolute top-6 right-6 z-[110] flex gap-2">
@@ -172,24 +157,17 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
                             "font-bold text-slate-800 dark:text-slate-100 mb-4 border-b border-orange-500/20 pb-2 flex-shrink-0",
                             full ? "text-2xl lg:text-3xl" : (isLargeView ? "text-lg lg:text-xl" : "text-base lg:text-lg")
                         )}>
-                            {currentSlide.title}
+                            {activePresentationSlide.title}
                         </h2>
                         <div className={cn(
-                            "flex-1 overflow-hidden text-slate-600 dark:text-slate-300",
+                            "flex-1 overflow-auto text-slate-600 dark:text-slate-300",
                             full ? "text-base lg:text-lg" : (isLargeView ? "text-sm lg:text-base" : "text-[12px]")
                         )}>
-                            {currentSlide.slide_type === 'bullet' ? (
-                                <ul className={cn("space-y-2", (full || isLargeView) ? "space-y-3" : "space-y-2")}>
-                                    {currentSlide.content.split('\n').map((line, i) => (
-                                        <li key={i} className="flex items-start gap-4">
-                                            <div className={cn("rounded-full bg-orange-500 flex-shrink-0", (full || isLargeView) ? "mt-2 h-1.5 w-1.5" : "mt-1.5 h-1 w-1")} />
-                                            <span className="leading-relaxed">{line.replace(/^[•\-\*]\s*/, '').trim()}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="leading-relaxed whitespace-pre-wrap">{currentSlide.content}</p>
-                            )}
+                            <div className="prose prose-slate dark:prose-invert max-w-none prose-headings:text-orange-600/80">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {activePresentationSlide.content}
+                                </ReactMarkdown>
+                            </div>
                         </div>
                     </div>
 
@@ -216,7 +194,7 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
             )}
 
             {/* Floating Navigation Controls - Only show when NOT in full screen */}
-            {!full && (
+            {!full && presentationSlides.length > 1 && (
                 <div className={cn(
                     "absolute bottom-20 left-0 right-0 flex justify-center gap-6 px-4 pointer-events-none z-10",
                 )}>
@@ -267,8 +245,14 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleDownload(); }}>
-                        <Download className="h-4 w-4" />
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-orange-600"
+                        onClick={(e) => { e.stopPropagation(); handleDownloadPPTX(); }}
+                        title="Download as PPTX"
+                    >
+                        <FileDown className="h-4 w-4" />
                     </Button>
                     <Button
                         variant="ghost"
@@ -294,9 +278,9 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
 
             {/* Thumbnail Ribbon */}
             <div className={cn("border-t border-border/50 bg-background p-4 flex-shrink-0", isLargeView ? "h-48" : "h-36")}>
-                <ScrollArea className="h-full w-full" orientation="horizontal">
+                <ScrollArea className="h-full w-full">
                     <div className="flex gap-4 h-full pb-2">
-                        {ppt.slides.map((slide, index) => (
+                        {presentationSlides.map((slide, index) => (
                             <button
                                 key={index}
                                 onClick={() => setCurrentSlideIndex(index)}
@@ -324,6 +308,32 @@ export function PPTViewer({ ppt, isLargeView = false, onToggleLargeView }: PPTVi
                         ))}
                     </div>
                 </ScrollArea>
+            </div>
+
+            {/* Hidden Export Container */}
+            <div className="fixed top-0 left-0 pointer-events-none opacity-0 -z-50" ref={allSlidesRef}>
+                {presentationSlides.map((slide, index) => (
+                    <div
+                        key={index}
+                        className="ppt-slide-export w-[1123px] h-[794px] bg-white p-16 flex flex-col border border-border"
+                        style={{ fontFamily: 'system-ui, sans-serif' }}
+                    >
+                        <h2 className="text-4xl font-bold text-slate-800 mb-8 border-b-2 border-orange-500 pb-4">
+                            {slide.title}
+                        </h2>
+                        <div className="flex-1 overflow-hidden text-slate-700 text-xl">
+                            <div className="prose prose-slate max-w-none prose-xl prose-headings:text-orange-600">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {slide.content}
+                                </ReactMarkdown>
+                            </div>
+                        </div>
+                        <div className="mt-8 pt-4 border-t border-slate-200 flex justify-between items-center text-sm text-slate-400 font-medium">
+                            <span>RAILVISION STRATEGY</span>
+                            <span>SLIDE {(index + 1).toString().padStart(2, '0')}</span>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

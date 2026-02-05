@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation } from "lucide-react";
 import { useState } from "react";
 
 export interface ToolCall {
@@ -32,7 +32,7 @@ interface ChatBubbleProps {
   tool_calls?: ToolCall[];
   showToolPanel?: boolean;
   isLoading?: boolean;
-  attachments?: File[];
+  attachments?: (File | { name: string; size: number })[];
 }
 
 const TypingDots = () => {
@@ -46,10 +46,12 @@ const TypingDots = () => {
 };
 
 const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
-  const toolName = toolCall.tool_name.toLowerCase();
+  const toolName = (toolCall.tool_name || "").toLowerCase();
   const isThink = toolName === "think";
   const isSearch = toolName.includes("search") || toolName.includes("web");
   const isKnowledgeBase = toolName.includes("knowledge") || toolName.includes("kb") || toolName === "knowledge_base";
+  const isPPT = toolName.includes("ppt") || toolName.includes("slide");
+  const isPDF = toolName.includes("pdf");
   const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response;
 
   const [isOpen, setIsOpen] = useState(isThink ? !isCompleted : false);
@@ -72,7 +74,11 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
       ? (isCompleted ? "Search Results" : "Searching...")
       : isKnowledgeBase
         ? (isCompleted ? "Knowledge Base Insights" : "Consulting Knowledge Base...")
-        : `Tool: ${toolCall.tool_name}`;
+        : isPPT
+          ? (toolName.includes("create") ? "Creating Presentation" : "Adding Slide")
+          : isPDF
+            ? (toolName.includes("create") ? "Generating Strategy Brief" : "Adding Brief Section")
+            : `Tool: ${toolCall.tool_name}`;
 
   const icon = isThink
     ? <Brain className="h-3 w-3" />
@@ -80,13 +86,17 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
       ? <Globe className="h-3 w-3" />
       : isKnowledgeBase
         ? <Database className="h-3 w-3" />
-        : <Code className="h-3 w-3" />;
+        : isPPT
+          ? (Presentation ? <Presentation className="h-3 w-3" /> : <FileText className="h-3 w-3" />)
+          : isPDF
+            ? <FileText className="h-3 w-3" />
+            : <Code className="h-3 w-3" />;
 
   // Normalized content extracting
   let bodyContent: React.ReactNode = null;
   if (isThink) {
-    const thought = args.thought || toolCall.tool_response;
-    const analysis = result.analysis;
+    const thought = args?.thought || toolCall.tool_response;
+    const analysis = result?.analysis;
     bodyContent = (
       <div className="space-y-2 py-1">
         {thought && <div className="text-muted-foreground italic text-[11px] leading-relaxed">"{thought}"</div>}
@@ -98,8 +108,8 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
       </div>
     );
   } else if (isSearch) {
-    const query = args.query;
-    const content = result.content || (typeof result === 'string' ? result : '');
+    const query = args?.query;
+    const content = result?.content || (typeof result === 'string' ? result : '');
     bodyContent = (
       <div className="space-y-2 py-1 font-sans">
         {query && <div className="text-[11px] opacity-70">Query: {query}</div>}
@@ -111,8 +121,8 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
       </div>
     );
   } else if (isKnowledgeBase) {
-    const query = args.query || args.q;
-    const rawResult = toolCall.tool_response || result.content || (typeof result === 'string' ? result : '');
+    const query = args?.query || args?.q;
+    const rawResult = toolCall.tool_response || result?.content || (typeof result === 'string' ? result : '');
 
     // Parse the strategic facts if present
     let facts: any[] = [];
@@ -210,6 +220,22 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         )}
       </div>
     );
+  } else if (isPPT || isPDF) {
+    const titleVal = args?.title || details?.title || "";
+    bodyContent = (
+      <div className="py-1 space-y-1">
+        {titleVal && <div className="text-[11px] font-medium text-foreground/80">{titleVal}</div>}
+        {args?.content && (
+          <div className="text-[10px] text-muted-foreground line-clamp-2 italic">
+            {args.content.substring(0, 100)}...
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 mt-1">
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Document Updated</span>
+        </div>
+      </div>
+    );
   } else {
     bodyContent = (
       <pre className="text-[10px] font-mono whitespace-pre-wrap py-1">
@@ -272,7 +298,8 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
 
   // Preprocess content to ensure better markdown rendering
   const processedContent = React.useMemo(() => {
-    let raw = content
+    const rawContent = typeof content === 'string' ? content : '';
+    let raw = rawContent
       .replace(/\\n/g, "\n")
       .replace(/\r\n/g, "\n");
 
@@ -326,12 +353,14 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
               <div className="flex flex-wrap gap-2 mb-3 not-prose">
                 {attachments.map((file, index) => (
                   <div key={index} className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-xs max-w-full",
-                    isUser ? "bg-white/20 text-primary-foreground" : "bg-muted border border-border"
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-xs max-w-full border",
+                    isUser
+                      ? "bg-white/10 text-primary-foreground border-white/20"
+                      : "bg-muted border-border"
                   )}>
-                    <FileText className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{file.name}</span>
-                    <span className="opacity-70 text-[10px]">
+                    <FileText className="h-4 w-4 flex-shrink-0 opacity-80" />
+                    <span className="truncate font-medium">{file.name}</span>
+                    <span className="opacity-60 text-[10px]">
                       ({(file.size / 1024).toFixed(1)} KB)
                     </span>
                   </div>

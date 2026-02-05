@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FullscreenLoader } from "@/components/shared/Spinner";
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ type OrgUser = {
   role: { id: string; name: string; display_name: string };
   created_at: string;
   last_login_at: string | null;
+  last_active_at: string | null;
 };
 
 const allowedStatuses = ["active", "idle", "error", "connected", "pending"] as const;
@@ -62,11 +65,13 @@ export default function Users() {
   const [activeTab, setActiveTab] = useState("users");
   const [selectedRole, setSelectedRole] = useState<typeof roles[0] | null>(null);
   const { toast } = useToast();
-  const { data: orgUsers } = useQuery<OrgUser[]>({
+  const { data: orgUsers, isLoading: isUsersLoading } = useQuery<OrgUser[]>({
     queryKey: ["org-users"],
     queryFn: async () => {
       const r = await api.fetch("api/v1/organizations/users");
-      return r.json();
+      // Fallback/Mock data if needed, or just return JSON
+      const data = await r.json();
+      return data;
     },
   });
 
@@ -107,53 +112,89 @@ export default function Users() {
           {/* Users Table */}
           <Card>
             <CardContent className="p-0">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                    <th className="p-4">Name</th>
-                    <th className="p-4">Email</th>
-                    <th className="p-4">Role</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Last Seen</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(orgUsers || []).map((user) => (
-                    <tr
-                      key={user.id}
-                      className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
-                            {(user.full_name || user.email || "").split(" ").map((n) => n[0]).join("")}
-                          </div>
-                          <span className="font-medium text-foreground">{user.full_name || user.email}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
-                      <td className="p-4">
-                        <Badge variant="outline">{user.role?.display_name || user.role?.name}</Badge>
-                      </td>
-                      <td className="p-4">
-                        <StatusBadge status={normalizeStatus(user.status)} />
-                      </td>
-                      <td className="p-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}
-                        </div>
-                      </td>
-                      <td className="p-4 text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </td>
+              {isUsersLoading ? (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Last Seen</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-border/50 last:border-0">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-8 w-8 rounded-full" />
+                            <Skeleton className="h-4 w-32" />
+                          </div>
+                        </td>
+                        <td className="p-4"><Skeleton className="h-4 w-40" /></td>
+                        <td className="p-4"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                        <td className="p-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                        <td className="p-4"><Skeleton className="h-4 w-24" /></td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end">
+                            <Skeleton className="h-8 w-8 rounded-md" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Last Seen</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(orgUsers || []).map((user) => (
+                      <tr
+                        key={user.id}
+                        className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-sm font-medium">
+                              {(user.full_name || user.email || "").split(" ").map((n) => n[0]).join("")}
+                            </div>
+                            <span className="font-medium text-foreground">{user.full_name || user.email}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
+                        <td className="p-4">
+                          <Badge variant="outline">{user.role?.display_name || user.role?.name}</Badge>
+                        </td>
+                        <td className="p-4">
+                          <StatusBadge status={normalizeStatus(user.status)} />
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {user.last_active_at ? new Date(user.last_active_at).toLocaleString() : "—"}
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

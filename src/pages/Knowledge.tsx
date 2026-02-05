@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FullscreenLoader } from "@/components/shared/Spinner";
 import {
   Search,
   Upload,
@@ -63,7 +65,7 @@ const getTypeIcon = (fileType: string) => {
 };
 
 export default function Knowledge() {
-  const { data: docs } = useQuery<DocumentItem[]>({
+  const { data: docs, isLoading: isDocsLoading } = useQuery<DocumentItem[]>({
     queryKey: ["documents"],
     queryFn: async () => {
       const r = await api.fetch("api/v1/documents/");
@@ -150,24 +152,36 @@ export default function Knowledge() {
                 By Type
               </h3>
               <div className="space-y-1">
-                {folderStats.map((folder) => (
-                  <button
-                    key={folder.name}
-                    onClick={() => setActiveFolder(folder.name)}
-                    className={cn(
-                      "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
-                      activeFolder === folder.name
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <folder.icon className="h-4 w-4" />
-                      {folder.name}
+                {isDocsLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="w-full flex items-center justify-between rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2 w-3/5">
+                        <Skeleton className="h-4 w-4 rounded-sm" />
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                      <Skeleton className="h-3 w-8" />
                     </div>
-                    <span className="text-xs text-muted-foreground">{folder.count}</span>
-                  </button>
-                ))}
+                  ))
+                ) : (
+                  folderStats.map((folder) => (
+                    <button
+                      key={folder.name}
+                      onClick={() => setActiveFolder(folder.name)}
+                      className={cn(
+                        "w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                        activeFolder === folder.name
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-muted"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <folder.icon className="h-4 w-4" />
+                        {folder.name}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{folder.count}</span>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>
@@ -176,57 +190,99 @@ export default function Knowledge() {
         {/* Main Content - Document List */}
         <Card className="flex-1 flex flex-col">
           <CardContent className="p-0">
-            <table className="w-full">
-              <thead className="sticky top-0 bg-card z-10">
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="p-4">Title</th>
-                  <th className="p-4">Tags</th>
-                  <th className="p-4">Scope</th>
-                  <th className="p-4">Source</th>
-                  <th className="p-4">Uploader</th>
-                  <th className="p-4 text-right">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocs.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    onClick={() => setSelectedDoc(doc)}
-                    className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                  >
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        {getTypeIcon(doc.file_type)}
-                        <span className="font-medium text-foreground">{doc.title || doc.original_filename || doc.filename}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex gap-1.5 flex-wrap">
-                        {(doc.tags || []).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="outline">{doc.scope}</Badge>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.storage_backend}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{doc.uploaded_by || "—"}</td>
-                    <td className="p-4 text-right text-sm text-muted-foreground">
-                      <div className="flex items-center justify-end gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(doc.created_at).toLocaleString()}
-                      </div>
-                    </td>
+            {isDocsLoading ? (
+              <table className="w-full">
+                <thead className="sticky top-0 bg-card z-10">
+                  <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                    <th className="p-4">Title</th>
+                    <th className="p-4">Tags</th>
+                    <th className="p-4">Scope</th>
+                    <th className="p-4">Source</th>
+                    <th className="p-4">Uploader</th>
+                    <th className="p-4 text-right">Updated</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/50 last:border-0">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-4 w-4 rounded-sm" />
+                          <Skeleton className="h-4 w-40" />
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-1.5">
+                          <Skeleton className="h-4 w-12 rounded-full" />
+                          <Skeleton className="h-4 w-16 rounded-full" />
+                        </div>
+                      </td>
+                      <td className="p-4"><Skeleton className="h-4 w-16 rounded-full" /></td>
+                      <td className="p-4"><Skeleton className="h-4 w-20" /></td>
+                      <td className="p-4"><Skeleton className="h-4 w-24" /></td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end items-center gap-1">
+                          <Skeleton className="h-3 w-3" />
+                          <Skeleton className="h-4 w-32" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full">
+                <thead className="sticky top-0 bg-card z-10">
+                  <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
+                    <th className="p-4">Title</th>
+                    <th className="p-4">Tags</th>
+                    <th className="p-4">Scope</th>
+                    <th className="p-4">Source</th>
+                    <th className="p-4">Uploader</th>
+                    <th className="p-4 text-right">Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((doc) => (
+                    <tr
+                      key={doc.id}
+                      onClick={() => setSelectedDoc(doc)}
+                      className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {getTypeIcon(doc.file_type)}
+                          <span className="font-medium text-foreground">{doc.title || doc.original_filename || doc.filename}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex gap-1.5 flex-wrap">
+                          {(doc.tags || []).map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="outline">{doc.scope}</Badge>
+                      </td>
+                      <td className="p-4 text-sm text-muted-foreground">{doc.storage_backend}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{doc.uploaded_by || "—"}</td>
+                      <td className="p-4 text-right text-sm text-muted-foreground">
+                        <div className="flex items-center justify-end gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(doc.created_at).toLocaleString()}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       </div>

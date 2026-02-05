@@ -37,7 +37,10 @@ import {
   Shield,
   Layers,
   Paperclip,
-  X
+  X,
+  Presentation,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +50,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
 import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
+import { PDFViewer, type PDF } from "@/components/shared/PDFViewer";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -131,13 +135,14 @@ interface Message {
   time: string;
   reasoning?: ReasoningStep[];
   tool_calls?: ToolCall[];
-  attachments?: File[];
+  attachments?: any[];
 }
 
 interface HistoryMessage {
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  attachments?: any[];
 }
 
 // Agent-specific conversations with reasoning
@@ -415,39 +420,86 @@ export default function Agents() {
   };
 
   const [messages, setMessages] = useState<Message[]>([]);
-  const [currentPPT, setCurrentPPT] = useState<PPT | null>(null);
+  const [allPPTs, setAllPPTs] = useState<PPT[]>([]);
+  const [activePPTIndex, setActivePPTIndex] = useState(0);
+  const currentPPT = allPPTs[activePPTIndex] || null;
   const [isPPTLargeView, setIsPPTLargeView] = useState(false);
 
+  const [allPDFs, setAllPDFs] = useState<PDF[]>([]);
+  const [activePDFIndex, setActivePDFIndex] = useState(0);
+  const currentPDF = allPDFs[activePDFIndex] || null;
+  const [isPDFLargeView, setIsPDFLargeView] = useState(false);
+  const [viewMode, setViewMode] = useState<'ppt' | 'pdf'>('ppt');
+
   useEffect(() => {
-    let latestPpt: PPT | null = null;
+    let ppts: PPT[] = [];
+    let pdfs: PDF[] = [];
+    let currentPpt: PPT | null = null;
+    let currentPdf: PDF | null = null;
 
     messages.forEach(m => {
       m.tool_calls?.forEach(tc => {
         if (tc.tool_name === 'create_ppt') {
-          latestPpt = {
+          currentPpt = {
             title: tc.tool_call_details?.summary?.args?.title || 'New Presentation',
             slides: []
           };
-        } else if (tc.tool_name === 'add_slide' && latestPpt) {
+          ppts.push(currentPpt);
+        } else if (tc.tool_name === 'add_slide' && currentPpt) {
           const args = tc.tool_call_details?.summary?.args;
           if (args) {
-            latestPpt.slides.push({
+            currentPpt.slides.push({
               title: args.title || 'Untitled Slide',
               content: args.content || '',
               slide_type: args.slide_type || 'text'
             });
           }
         }
+
+        if (tc.tool_name === 'create_pdf') {
+          currentPdf = {
+            title: tc.tool_call_details?.summary?.args?.title || 'New Strategy Brief',
+            sections: []
+          };
+          pdfs.push(currentPdf);
+        } else if (tc.tool_name === 'add_pdf_section' && currentPdf) {
+          const args = tc.tool_call_details?.summary?.args;
+          if (args) {
+            currentPdf.sections.push({
+              title: args.title || 'Untitled Section',
+              content: args.content || '',
+              section_type: args.section_type || 'text'
+            });
+          }
+        }
       });
     });
 
-    if (latestPpt) {
-      setCurrentPPT(latestPpt);
+    if (ppts.length > 0) {
+      setAllPPTs(ppts);
       const lastMsg = messages[messages.length - 1];
       const hasRecentPptTool = lastMsg?.tool_calls?.some(tc => ['create_ppt', 'add_slide'].includes(tc.tool_name));
-      if (hasRecentPptTool && !isRightSidebarOpen) {
-        setIsRightSidebarOpen(true);
+      if (hasRecentPptTool) {
+        setActivePPTIndex(ppts.length - 1);
+        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+        setViewMode('ppt');
       }
+    }
+
+    if (pdfs.length > 0) {
+      setAllPDFs(pdfs);
+      const lastMsg = messages[messages.length - 1];
+      const hasRecentPdfTool = lastMsg?.tool_calls?.some(tc => ['create_pdf', 'add_pdf_section'].includes(tc.tool_name));
+      if (hasRecentPdfTool) {
+        setActivePDFIndex(pdfs.length - 1);
+        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+        setViewMode('pdf');
+      }
+    }
+
+    // Only auto-collapse if we have messages but absolutely NO documents found via parsing OR existing state
+    if (messages.length > 0 && ppts.length === 0 && pdfs.length === 0 && !currentPPT && !currentPDF && isRightSidebarOpen) {
+      setIsRightSidebarOpen(false);
     }
   }, [messages, isRightSidebarOpen]);
 
@@ -465,7 +517,7 @@ export default function Agents() {
     ? currentUser.full_name.trim().split(/\s+/)[0]
     : "there";
   const currentAgentKey = agentId || "cso";
-  const currentAgentMeta = aiAgents[currentAgentKey];
+  const currentAgentMeta = aiAgents[currentAgentKey] || aiAgents.cso;
   const { data: projectsData } = useQuery<ProjectItem[]>({
     queryKey: ["projects-by-agent", currentAgentMeta.id],
     queryFn: async () => {
@@ -522,27 +574,66 @@ export default function Agents() {
       const d = await r.json();
       setConversationId(d?.conversation_id ?? null);
       if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-        const p = d.presentations[0];
-        setCurrentPPT({
+        setAllPPTs(d.presentations.map((p: any) => ({
           title: p.title,
-          slides: p.slides.map((s: any) => ({
+          slides: Array.isArray(p.slides) ? p.slides.map((s: any) => ({
             title: s.title,
             content: s.content,
             slide_type: s.slide_type
-          }))
-        });
+          })) : []
+        })));
+        setActivePPTIndex(0);
         if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
       } else {
-        setCurrentPPT(null);
+        setAllPPTs([]);
+      }
+
+      try {
+        const pdflist = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs : (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
+        if (pdflist.length > 0) {
+          setAllPDFs(pdflist.map((doc: any) => ({
+            title: doc.title || "Untitled Brief",
+            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+              title: s.title || "Untitled Section",
+              content: s.content || "",
+              section_type: s.section_type || "text"
+            })) : []
+          })));
+          setActivePDFIndex(pdflist.length - 1);
+          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+        } else {
+          setAllPDFs([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse PDF history", e);
+        setAllPDFs([]);
       }
       const arr = Array.isArray(d?.messages) ? d.messages : [];
-      const conv = arr.map((m: HistoryMessage, idx: number) => ({
-        id: Date.now() + idx,
-        type: m.role === "user" ? "user" : "agent",
-        agent: m.role === "assistant" ? currentAgentKey : undefined,
-        content: m.content,
-        time: new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-      }));
+      const conv = arr.map((m: HistoryMessage, idx: number) => {
+        const role = (m.role || "").toLowerCase();
+        const isUserMsg = role === "user";
+
+        // Debugging attachments if present
+        if (isUserMsg && m.attachments && m.attachments.length > 0) {
+          console.log(`User message ${idx} has ${m.attachments.length} attachments:`, m.attachments);
+        }
+
+        return {
+          id: Date.now() + idx,
+          type: isUserMsg ? "user" : "agent",
+          agent: role === "assistant" ? currentAgentKey : undefined,
+          content: m.content || "",
+          time: m.created_at ? new Date(m.created_at).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+          }) : "--:--",
+          attachments: isUserMsg ? m.attachments?.map((a: any) => ({
+            name: a.filename || a.name || "Unnamed file",
+            size: typeof a.file_size_bytes === 'number' ? a.file_size_bytes : (typeof a.size === 'number' ? a.size : 0)
+          })) : undefined,
+        };
+      });
       setMessages(conv);
     };
     void loadInitial();
@@ -794,7 +885,11 @@ export default function Agents() {
                 setMessages([]);
                 setConversationId(null);
                 setSelectedProjectId(null);
-                setCurrentPPT(null);
+                setAllPPTs([]);
+                setActivePPTIndex(0);
+                setAllPDFs([]);
+                setActivePDFIndex(0);
+                setIsRightSidebarOpen(false);
               }}
             >
               <Plus className="h-4 w-4" />
@@ -828,18 +923,58 @@ export default function Agents() {
                     const d = await r.json();
                     setConversationId(d?.conversation_id ?? null);
                     if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-                      const p = d.presentations[0];
-                      setCurrentPPT({
+                      const pptsData = d.presentations.map((p: any) => ({
                         title: p.title,
                         slides: p.slides.map((s: any) => ({
                           title: s.title,
                           content: s.content,
                           slide_type: s.slide_type
                         }))
-                      });
+                      }));
+                      setAllPPTs(pptsData);
+                      setActivePPTIndex(pptsData.length - 1);
                       if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                      setViewMode('ppt');
                     } else {
-                      setCurrentPPT(null);
+                      setAllPPTs([]);
+                      setActivePPTIndex(0);
+                    }
+                    try {
+                      const pdfsArr = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs :
+                        (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
+
+                      if (pdfsArr.length > 0) {
+                        const pdfsData = pdfsArr.map((doc: any) => ({
+                          title: doc.title || "Untitled Brief",
+                          sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                            title: s.title || "Untitled Section",
+                            content: s.content || "",
+                            section_type: s.section_type || "text"
+                          })) : []
+                        }));
+                        setAllPDFs(pdfsData);
+                        setActivePDFIndex(pdfsData.length - 1);
+                        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                        if (!d?.presentations || d.presentations.length === 0) {
+                          setViewMode('pdf');
+                        }
+                      } else {
+                        setAllPDFs([]);
+                        setActivePDFIndex(0);
+                      }
+                    } catch (e) {
+                      console.error("Failed to parse PDF history", e);
+                      setAllPDFs([]);
+                      setActivePDFIndex(0);
+                    }
+
+                    // Automatically close sidebar if no documents are present in this chat
+                    const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                    const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                      (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+
+                    if (!hasPPT && !hasPDF) {
+                      setIsRightSidebarOpen(false);
                     }
                     const arr = Array.isArray(d?.messages) ? d.messages : [];
                     const conv = arr.map((m: HistoryMessage, idx: number) => ({
@@ -847,6 +982,7 @@ export default function Agents() {
                       type: m.role === "user" ? "user" : "agent",
                       agent: m.role === "assistant" ? currentAgentKey : undefined,
                       content: m.content,
+                      tool_calls: m.tool_calls,
                       time: new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
                     }));
                     setMessages(conv);
@@ -939,6 +1075,8 @@ export default function Agents() {
                   const isReasoningExpanded = expandedReasonings[message.id] ?? false;
                   const isLast = index === displayMessages.length - 1;
                   const showTyping = isStreaming && isLast && (message.content || "").trim().length === 0;
+
+                  if (!agent) return null;
 
                   return (
                     <div key={message.id} className="flex items-start gap-3">
@@ -1216,14 +1354,77 @@ export default function Agents() {
         className={cn(
           "flex flex-col border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
           isRightSidebarOpen
-            ? isPPTLargeView && currentPPT
+            ? ((viewMode === 'ppt' && isPPTLargeView && currentPPT) || (viewMode === 'pdf' && isPDFLargeView && currentPDF))
               ? "w-[60vw] lg:w-[70vw] flex-shrink-0 border-l"
-              : currentPPT ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
+              : (currentPPT || currentPDF) ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-border/50 h-[60px] min-w-[300px]">
-          <h2 className="font-semibold text-lg">{currentPPT ? "Presentation" : "Context"}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-lg">
+              {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : "Context"}
+            </h2>
+            {currentPPT && currentPDF && (
+              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'ppt' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('ppt')}
+                >
+                  <Presentation className="h-3 w-3" />
+                  PPT
+                </Button>
+                <div className="w-[1px] h-3 bg-border mx-1" />
+                <Button
+                  variant={viewMode === 'pdf' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('pdf')}
+                >
+                  <FileText className="h-3 w-3" />
+                  PDF
+                </Button>
+              </div>
+            )}
+
+            {/* Pagination for multiple documents */}
+            {((viewMode === 'ppt' && allPPTs.length > 1) || (viewMode === 'pdf' && allPDFs.length > 1)) && (
+              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1 gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : activePDFIndex === 0}
+                  onClick={() => {
+                    if (viewMode === 'ppt') setActivePPTIndex(prev => Math.max(0, prev - 1));
+                    else setActivePDFIndex(prev => Math.max(0, prev - 1));
+                  }}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="text-[10px] font-mono px-1">
+                  {viewMode === 'ppt'
+                    ? `${activePPTIndex + 1}/${allPPTs.length}`
+                    : `${activePDFIndex + 1}/${allPDFs.length}`
+                  }
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6"
+                  disabled={viewMode === 'ppt' ? activePPTIndex === allPPTs.length - 1 : activePDFIndex === allPDFs.length - 1}
+                  onClick={() => {
+                    if (viewMode === 'ppt') setActivePPTIndex(prev => Math.min(allPPTs.length - 1, prev + 1));
+                    else setActivePDFIndex(prev => Math.min(allPDFs.length - 1, prev + 1));
+                  }}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -1235,11 +1436,29 @@ export default function Agents() {
         </div>
 
         <div className="flex-1 relative overflow-hidden">
-          {currentPPT ? (
+          {viewMode === 'ppt' && currentPPT ? (
             <PPTViewer
               ppt={currentPPT}
               isLargeView={isPPTLargeView}
               onToggleLargeView={() => setIsPPTLargeView(!isPPTLargeView)}
+            />
+          ) : viewMode === 'pdf' && currentPDF ? (
+            <PDFViewer
+              pdf={currentPDF}
+              isLargeView={isPDFLargeView}
+              onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
+            />
+          ) : currentPPT ? (
+            <PPTViewer
+              ppt={currentPPT}
+              isLargeView={isPPTLargeView}
+              onToggleLargeView={() => setIsPPTLargeView(!isPPTLargeView)}
+            />
+          ) : currentPDF ? (
+            <PDFViewer
+              pdf={currentPDF}
+              isLargeView={isPDFLargeView}
+              onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
             />
           ) : (
             <>
