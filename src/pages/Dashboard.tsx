@@ -144,7 +144,7 @@ export default function Dashboard() {
   const agents = [
     { name: "Michael", role: "CSO", icon: User, enabled: true, path: "/agents/cso", description: "Chief Security Officer" },
     { name: "Sarah", role: "CTO", icon: User, enabled: false, path: "", description: "Chief Technology Officer" },
-    { name: "David", role: "CFO", icon: User, enabled: false, path: "", description: "Chief Financial Officer" },
+    { name: "Caroline", role: "CFO", icon: User, enabled: false, path: "", description: "Chief Financial Officer" },
     { name: "Emily", role: "CMO", icon: User, enabled: false, path: "", description: "Chief Marketing Officer" },
     { name: "James", role: "COO", icon: User, enabled: false, path: "", description: "Chief Operating Officer" },
   ];

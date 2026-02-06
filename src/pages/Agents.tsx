@@ -292,7 +292,7 @@ const agentEmptyPrompts: Record<string, string> = {
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
   { id: "gpt", name: "GPT", description: "OpenAI GPT-5.2", icon: Bot },
-  { id: "claude", name: "Claude", description: "Anthropic Claude 3", icon: Bot, disabled: false },
+  { id: "claude", name: "Claude", description: "Anthropic Claude 4.5", icon: Bot, disabled: false },
   { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
 ];
 
@@ -732,7 +732,7 @@ export default function Agents() {
             : selectedModel === "perplexity"
               ? "perplexity/sonar"
               : selectedModel === "claude"
-                ? "anthropic/claude-3-haiku-20240307"
+                ? "anthropic/claude-opus-4-6"
                 : selectedModel;
       const agentValue =
         selectedCapability === "auto"
@@ -837,6 +837,19 @@ export default function Agents() {
   };
 
   const isComingSoon = currentAgentKey !== "cso";
+
+  // Determine which viewer is currently active to ensure expansion logic matches rendered content
+  const activeViewer =
+    (viewMode === 'ppt' && currentPPT) ? 'ppt' :
+      (viewMode === 'pdf' && currentPDF) ? 'pdf' :
+        currentPPT ? 'ppt' :
+          currentPDF ? 'pdf' :
+            null;
+
+  const isExpandedView = isRightSidebarOpen && (
+    (activeViewer === 'ppt' && isPPTLargeView) ||
+    (activeViewer === 'pdf' && isPDFLargeView)
+  );
 
   return (
     <div className="flex h-full w-full bg-background overflow-hidden border-t border-border relative">
@@ -1014,7 +1027,10 @@ export default function Agents() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#fefcf8] dark:bg-background relative transition-all duration-300">
+      <div className={cn(
+        "flex flex-col min-w-0 bg-[#fefcf8] dark:bg-background relative transition-all duration-300",
+        isExpandedView ? "w-0 overflow-hidden opacity-0" : "flex-1"
+      )}>
         {/* Chat Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/50 h-[60px]">
           <div className="flex items-center gap-2">
@@ -1354,8 +1370,8 @@ export default function Agents() {
         className={cn(
           "flex flex-col border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
           isRightSidebarOpen
-            ? ((viewMode === 'ppt' && isPPTLargeView && currentPPT) || (viewMode === 'pdf' && isPDFLargeView && currentPDF))
-              ? "w-[60vw] lg:w-[70vw] flex-shrink-0 border-l"
+            ? isExpandedView
+              ? "flex-1 border-l"
               : (currentPPT || currentPDF) ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}

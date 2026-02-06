@@ -75,12 +75,13 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
         console.log("PDF download started...");
 
         try {
-            const container = documentRef.current;
+            // Use the export area which has fixed A4 dimensions and styling
+            const container = exportAreaRef.current;
             if (!container) {
-                throw new Error("Document container not found");
+                throw new Error("Export container not found");
             }
 
-            const pages = Array.from(container.querySelectorAll('.pdf-page'));
+            const pages = Array.from(container.querySelectorAll('.pdf-page-export'));
             console.log(`Found ${pages.length} pages to export`);
 
             if (pages.length === 0) {
@@ -93,49 +94,66 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                 format: 'a4'
             });
 
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+
             for (let i = 0; i < pages.length; i++) {
                 const originalPage = pages[i] as HTMLElement;
                 console.log(`Capturing page ${i + 1}/${pages.length}...`);
 
-                // Manually clone the element to bypass html2canvas internal cloning issues
                 const clone = originalPage.cloneNode(true) as HTMLElement;
 
-                // Style the clone to ensure it captures correctly
                 Object.assign(clone.style, {
                     position: 'fixed',
                     top: '0',
                     left: '0',
-                    width: '794px', // A4 width at 96 DPI (approx)
-                    height: 'auto',
                     zIndex: '-9999',
                     visibility: 'visible',
+                    opacity: '1',
                     margin: '0',
-                    transform: 'none'
+                    transform: 'none',
+                    height: 'auto',
+                    minHeight: '1123px' // A4 height at 96 DPI
                 });
 
                 document.body.appendChild(clone);
 
                 try {
                     const canvas = await html2canvas(clone, {
-                        scale: 1.5,
+                        scale: 2,
                         useCORS: true,
                         logging: false,
                         backgroundColor: '#ffffff',
-                        windowWidth: 794,
+                        windowWidth: 794, // A4 width at 96 DPI
                     });
 
                     const imgData = canvas.toDataURL('image/jpeg', 0.95);
-                    const pdfWidth = doc.internal.pageSize.getWidth();
-                    const pdfHeight = doc.internal.pageSize.getHeight();
+
+                    const imgWidth = canvas.width;
+                    const imgHeight = canvas.height;
+                    const ratio = imgWidth / imgHeight;
+
+                    // Default to fitting width (standard PDF behavior)
+                    let pdfImgWidth = pageWidth;
+                    let pdfImgHeight = pageWidth / ratio;
+
+                    // If height exceeds page height, strict scale-to-fit to ensure "complete page" (reducing letter size)
+                    if (pdfImgHeight > pageHeight) {
+                        console.log("Page content exceeds A4 height, scaling to fit...");
+                        pdfImgHeight = pageHeight;
+                        pdfImgWidth = pageHeight * ratio;
+                    }
 
                     if (i > 0) {
                         doc.addPage();
                     }
 
-                    doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    // Center the image if it was scaled down by height
+                    const xOffset = (pageWidth - pdfImgWidth) / 2;
+                    doc.addImage(imgData, 'JPEG', xOffset, 0, pdfImgWidth, pdfImgHeight);
+
                     console.log(`Page ${i + 1} captured`);
                 } finally {
-                    // Always clean up the clone
                     document.body.removeChild(clone);
                 }
             }
@@ -144,22 +162,25 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
             doc.save(`${pdf.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
         } catch (error) {
             console.error("PDF generation failed:", error);
-            alert(`Failed to generate PDF. Using fallback print mode.`);
-            window.print();
+            alert(`Failed to generate PDF. Please try again.`);
         } finally {
             setIsDownloading(false);
         }
     };
 
-    const DocumentContent = ({ full = false }: { full?: boolean }) => (
+    const DocumentContent = ({ full = false }: { full?: boolean }) => {
+        // Determine if we are in the expanded widget mode (not fullscreen reader, but maximized widget)
+        const isWidgetExpanded = !full && isLargeView;
+        
+        return (
         <div className={cn(
             "flex-1 relative flex bg-slate-100 dark:bg-slate-950 overflow-hidden",
-            full && "fixed inset-0 z-[100] h-screen w-screen"
+            full && "fixed inset-0 z-[9999] h-screen w-screen"
         )}>
             {/* Table of Contents Sidebar */}
             <div className={cn(
                 "border-r border-border/50 bg-background/50 backdrop-blur-md hidden lg:flex flex-col transition-all duration-300",
-                showSidebar ? (full ? "w-72" : "w-64") : "w-0 opacity-0 border-none"
+                showSidebar ? (full || isWidgetExpanded ? "w-72" : "w-64") : "w-0 opacity-0 border-none"
             )}>
                 <div className="p-4 border-b border-border/50 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -227,20 +248,24 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                         ref={documentRef}
                         className={cn(
                             "mx-auto space-y-8",
-                            full ? "max-w-4xl" : "max-w-3xl"
+                            (full || isWidgetExpanded) ? "max-w-4xl" : "max-w-[800px]"
                         )}
+                        style={(!full && !isWidgetExpanded) ? { transform: 'scale(0.95)', transformOrigin: 'top center' } : undefined}
                     >
                         {/* Cover Page Simulation */}
-                        <div className="pdf-page bg-white dark:bg-slate-900 shadow-2xl rounded-sm p-12 lg:p-20 aspect-[1/1.41] flex flex-col justify-center border border-border/50 relative overflow-hidden flex-shrink-0">
+                        <div className={cn(
+                            "pdf-page bg-white dark:bg-slate-900 shadow-2xl rounded-sm flex flex-col justify-center border border-border/50 relative flex-shrink-0",
+                            (full || isWidgetExpanded) ? "aspect-[1/1.41] p-12 lg:p-20 overflow-hidden" : "min-h-[600px] p-8 lg:p-12 overflow-visible"
+                        )}>
                             <div className="absolute top-0 left-0 w-full h-2 bg-red-600" />
                             <div className="space-y-6">
-                                <FileText className="h-16 w-16 text-red-600 mb-8" />
-                                <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white leading-tight">
+                                <FileText className={cn("text-red-600 mb-8", (full || isWidgetExpanded) ? "h-16 w-16" : "h-10 w-10")} />
+                                <h1 className={cn("font-bold text-slate-900 dark:text-white leading-tight", (full || isWidgetExpanded) ? "text-4xl lg:text-5xl" : "text-2xl lg:text-3xl")}>
                                     {pdf.title}
                                 </h1>
                                 <div className="h-1 w-24 bg-red-600/30" />
                                 <div className="space-y-4 pt-12">
-                                    <p className="text-lg text-muted-foreground font-medium">RailVision Strategy Brief</p>
+                                    <p className={cn("text-muted-foreground font-medium", (full || isWidgetExpanded) ? "text-lg" : "text-sm")}>RailVision Strategy Brief</p>
                                     <div className="flex items-center gap-4 text-sm text-muted-foreground/60 border-t border-border/50 pt-4">
                                         <span>Confidential</span>
                                         <span>•</span>
@@ -255,7 +280,10 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                             <div
                                 key={index}
                                 ref={el => sectionsRef.current[index] = el}
-                                className="pdf-page bg-white dark:bg-slate-900 shadow-xl rounded-sm border border-border/50 aspect-[1/1.41] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden flex-shrink-0"
+                                className={cn(
+                                    "pdf-page bg-white dark:bg-slate-900 shadow-xl rounded-sm border border-border/50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 flex-shrink-0",
+                                    (full || isWidgetExpanded) ? "aspect-[1/1.41] overflow-hidden" : "min-h-[600px] overflow-visible"
+                                )}
                             >
                                 {/* Page Header */}
                                 <div className="px-8 py-6 border-b border-border/30 flex justify-between items-center text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
@@ -264,11 +292,14 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                                 </div>
 
                                 {/* Page Content */}
-                                <div className="flex-1 p-10 lg:p-16 overflow-hidden">
-                                    <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-8 pb-4 border-b-2 border-red-600/10">
+                                <div className={cn("flex-1", (full || isWidgetExpanded) ? "p-10 lg:p-16 overflow-hidden" : "p-8 lg:p-10 overflow-visible")}>
+                                    <h2 className={cn("font-bold text-slate-800 dark:text-slate-100 mb-8 pb-4 border-b-2 border-red-600/10", (full || isWidgetExpanded) ? "text-2xl" : "text-xl")}>
                                         {section.title}
                                     </h2>
-                                    <div className="prose prose-slate dark:prose-invert max-w-none prose-headings:text-red-600/80">
+                                    <div className={cn(
+                                        "prose prose-slate dark:prose-invert max-w-none prose-headings:text-red-600/80", 
+                                        (!full && !isWidgetExpanded) && "text-xs leading-relaxed prose-headings:text-lg prose-p:my-2"
+                                    )}>
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                             {section.content}
                                         </ReactMarkdown>
@@ -287,17 +318,17 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
 
                 {/* Hidden Export Area */}
                 <div className="fixed top-0 left-0 pointer-events-none opacity-0 -z-50" ref={exportAreaRef}>
-                    <div className="pdf-page-export bg-white w-[794px] h-[1123px] p-20 flex flex-col justify-center border border-slate-200 relative overflow-hidden flex-shrink-0" style={{ fontFamily: 'system-ui, sans-serif' }}>
+                    <div className="pdf-page-export bg-white w-[794px] min-h-[1123px] p-16 flex flex-col justify-center border border-slate-200 relative flex-shrink-0" style={{ fontFamily: 'Arial, sans-serif' }}>
                         <div className="absolute top-0 left-0 w-full h-2 bg-red-600" />
                         <div className="space-y-6">
-                            <FileText className="h-16 w-16 text-red-600 mb-8" />
-                            <h1 className="text-4xl font-bold text-slate-900 leading-tight">
+                            <FileText className="h-12 w-12 text-red-600 mb-8" />
+                            <h1 className="text-3xl font-bold text-slate-900 leading-tight">
                                 {pdf.title}
                             </h1>
                             <div className="h-1 w-24 bg-red-600/30" />
-                            <div className="space-y-4 pt-12">
-                                <p className="text-lg text-slate-500 font-medium">RailVision Strategy Brief</p>
-                                <div className="flex items-center gap-4 text-sm text-slate-400 border-t border-slate-100 pt-4">
+                            <div className="space-y-4 pt-10">
+                                <p className="text-base text-slate-500 font-medium">RailVision Strategy Brief</p>
+                                <div className="flex items-center gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4">
                                     <span>Confidential</span>
                                     <span>•</span>
                                     <span>{new Date().toLocaleDateString()}</span>
@@ -308,24 +339,24 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                     {docSections.map((section, index) => (
                         <div
                             key={index}
-                            className="pdf-page-export bg-white w-[794px] h-[1123px] flex flex-col border border-slate-200 overflow-hidden flex-shrink-0"
-                            style={{ fontFamily: 'system-ui, sans-serif' }}
+                            className="pdf-page-export bg-white w-[794px] min-h-[1123px] flex flex-col border border-slate-200 flex-shrink-0"
+                            style={{ fontFamily: 'Arial, sans-serif' }}
                         >
-                            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+                            <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center text-[9px] text-slate-400 uppercase tracking-widest font-bold">
                                 <span>{pdf.title}</span>
                                 <span>RailVision Strategic Analysis</span>
                             </div>
-                            <div className="flex-1 p-16 overflow-hidden">
-                                <h2 className="text-3xl font-bold text-slate-800 mb-8 pb-4 border-b-2 border-red-600/10">
+                            <div className="flex-1 p-12">
+                                <h2 className="text-2xl font-bold text-slate-800 mb-6 pb-3 border-b-2 border-red-600/10">
                                     {section.title}
                                 </h2>
-                                <div className="prose prose-slate max-w-none prose-lg prose-headings:text-red-700">
+                                <div className="prose prose-sm prose-slate max-w-none prose-headings:text-red-700">
                                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                         {section.content}
                                     </ReactMarkdown>
                                 </div>
                             </div>
-                            <div className="px-8 py-4 border-t border-slate-100 flex justify-between items-center text-[10px] text-slate-400 font-mono">
+                            <div className="px-8 py-4 border-t border-slate-100 flex justify-between items-center text-[9px] text-slate-400 font-mono">
                                 <span>RAILVISION CONFIDENTIAL</span>
                                 <span>PAGE {(index + 2).toString().padStart(2, '0')}</span>
                             </div>
@@ -334,7 +365,8 @@ export function PDFViewer({ pdf, isLargeView = false, onToggleLargeView }: PDFVi
                 </div>
             </div>
         </div>
-    );
+        );
+    };
 
     return (
         <div className={cn("flex flex-col h-full bg-background overflow-hidden relative")}>
