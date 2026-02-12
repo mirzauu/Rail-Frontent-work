@@ -52,7 +52,9 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const isKnowledgeBase = toolName.includes("knowledge") || toolName.includes("kb") || toolName === "knowledge_base";
   const isPPT = toolName.includes("ppt") || toolName.includes("slide");
   const isPDF = toolName.includes("pdf");
-  const isCompleted = toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response;
+  const isDoc = toolName.includes("word") || toolName.includes("doc");
+  const isCallEvent = toolCall.event_type === "ToolCallEventType.CALL";
+  const isCompleted = !isCallEvent && (toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response);
 
   const [isOpen, setIsOpen] = useState(isThink ? !isCompleted : false);
 
@@ -69,7 +71,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const result = (details?.result as any) || (toolCall as any).result || {};
 
   const title = isThink
-    ? (isCompleted ? "Analysis Complete" : "Thinking...")
+    ? (isCompleted ? "Thought" : "Thinking...")
     : isSearch
       ? (isCompleted ? "Search Results" : "Searching...")
       : isKnowledgeBase
@@ -78,7 +80,9 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           ? (toolName.includes("create") ? "Creating Presentation" : "Adding Slide")
           : isPDF
             ? (toolName.includes("create") ? "Generating Strategy Brief" : "Adding Brief Section")
-            : `Tool: ${toolCall.tool_name}`;
+            : isDoc
+              ? (toolName.includes("create") ? "Creating Word Document" : "Adding Document Section")
+              : `Tool: ${toolCall.tool_name}`;
 
   const icon = isThink
     ? <Brain className="h-3 w-3" />
@@ -90,16 +94,27 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           ? (Presentation ? <Presentation className="h-3 w-3" /> : <FileText className="h-3 w-3" />)
           : isPDF
             ? <FileText className="h-3 w-3" />
-            : <Code className="h-3 w-3" />;
+            : isDoc
+              ? <FileText className="h-3 w-3 text-blue-500" />
+              : <Code className="h-3 w-3" />;
 
   // Normalized content extracting
   let bodyContent: React.ReactNode = null;
   if (isThink) {
-    const thought = args?.thought || toolCall.tool_response;
+    const thought = args?.thought || (toolCall.tool_response !== "Running tool think" ? toolCall.tool_response : null);
     const analysis = result?.analysis;
     bodyContent = (
       <div className="space-y-2 py-1">
-        {thought && <div className="text-muted-foreground italic text-[11px] leading-relaxed">"{thought}"</div>}
+        {thought ? (
+          <div className="text-muted-foreground italic text-[11px] leading-relaxed">"{thought}"</div>
+        ) : (
+          !isCompleted && (
+            <div className="flex items-center gap-2 text-muted-foreground italic text-[11px]">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Analyzing context...</span>
+            </div>
+          )
+        )}
         {isCompleted && analysis && (
           <div className="text-foreground/80 border-t border-border/40 pt-2 mt-2">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
@@ -122,10 +137,14 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
     );
   } else if (isKnowledgeBase) {
     const query = args?.query || args?.q;
-    const rawResult = toolCall.tool_response || result?.content || (typeof result === 'string' ? result : '');
+    // Prioritize the detailed result content over the status message in tool_response
+    const resultString = typeof result === 'string' ? result : result?.content;
+    const rawResult = resultString || toolCall.tool_response || "";
 
     // Parse the strategic facts if present
     let facts: any[] = [];
+    let textContent = rawResult;
+
     try {
       if (rawResult) {
         // More robust JSON array extraction
@@ -133,13 +152,16 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         const end = rawResult.lastIndexOf(']');
         if (start !== -1 && end !== -1 && end >= start) {
           const jsonPart = rawResult.substring(start, end + 1);
-          facts = JSON.parse(jsonPart);
-        } else if (start !== -1) {
-          // Fallback: try to see if it's just a raw JSON array string that didn't have brackets in the index search correctly (unlikely but safe)
           try {
-            const parsed = JSON.parse(rawResult);
-            if (Array.isArray(parsed)) facts = parsed;
-          } catch (e) { }
+            const parsed = JSON.parse(jsonPart);
+            if (Array.isArray(parsed)) {
+              facts = parsed;
+              // Remove the JSON part from textContent to avoid massive duplication
+              textContent = rawResult.substring(0, start) + rawResult.substring(end + 1);
+            }
+          } catch (e) {
+            // If parse fails, keep textContent as is
+          }
         }
       }
     } catch (e) {
@@ -155,63 +177,73 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           </div>
         )}
         {isCompleted ? (
-          facts.length > 0 ? (
-            <div className="grid gap-3 mt-2">
-              {facts.map((fact, idx) => (
-                <div key={idx} className="bg-card/50 border border-border/40 rounded-lg p-3 shadow-sm hover:shadow-md transition-all group/fact">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1 rounded bg-primary/10 text-primary">
-                        <Server className="h-3 w-3" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 leading-none mb-0.5">
-                          {fact.type || 'Entity'}
-                        </span>
-                        <span className="text-sm font-semibold text-foreground">{fact.name}</span>
-                      </div>
-                    </div>
-                    {fact.properties?.confidence && (
-                      <div className="flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full">
-                        <CheckCircle2 className="h-2.5 w-2.5" />
-                        {Math.round(fact.properties.confidence * 100)}%
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-2 border-t border-border/30">
-                    {Object.entries(fact.properties || {}).map(([key, value]) => {
-                      if (['confidence', 'name', 'normalized_name', 'source_doc_id', 'segment_ids', 'source_versions', 'created_at', 'type'].includes(key)) return null;
-                      if (value === null || value === undefined || value === "") return null;
-
-                      const displayKey = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
-                      const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
-
-                      return (
-                        <div key={key} className="flex flex-col gap-0.5">
-                          <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{displayKey}</span>
-                          <span className="text-[11px] text-foreground/80 leading-snug">
-                            {displayValue}
-                          </span>
+          <div className="space-y-4">
+            {facts.length > 0 && (
+              <div className="grid gap-3 mt-2">
+                {facts.map((fact, idx) => (
+                  <div key={idx} className="bg-card/50 border border-border/40 rounded-lg p-3 shadow-sm hover:shadow-md transition-all group/fact">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1 rounded bg-primary/10 text-primary">
+                          <Server className="h-3 w-3" />
                         </div>
-                      )
-                    })}
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 leading-none mb-0.5">
+                            {fact.type || 'Entity'}
+                          </span>
+                          <span className="text-sm font-semibold text-foreground">{fact.name}</span>
+                        </div>
+                      </div>
+                      {fact.properties?.confidence && (
+                        <div className="flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded-full">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
+                          {Math.round(fact.properties.confidence * 100)}%
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 mt-3 pt-2 border-t border-border/30">
+                      {Object.entries(fact.properties || {}).map(([key, value]) => {
+                        if (['confidence', 'name', 'normalized_name', 'source_doc_id', 'segment_ids', 'source_versions', 'created_at', 'type'].includes(key)) return null;
+                        if (value === null || value === undefined || value === "") return null;
+
+                        const displayKey = key.replace(/_/g, ' ').replace(/([A-Z])/g, ' $1').trim();
+                        const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+
+                        return (
+                          <div key={key} className="flex flex-col gap-0.5">
+                            <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tight">{displayKey}</span>
+                            <span className="text-[11px] text-foreground/80 leading-snug">
+                              {displayValue}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {textContent && textContent.trim().length > 0 && (
+              <div className={cn(
+                "text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex flex-col gap-2",
+                facts.length === 0 && "items-center flex-row"
+              )}>
+                {facts.length === 0 && <Info className="h-3.3 w-3.5 flex-shrink-0" />}
+                <div className="prose prose-xs dark:prose-invert w-full max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{textContent}</ReactMarkdown>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex items-center gap-2">
-              <Info className="h-3.3 w-3.5" />
-              {rawResult ? (
-                <div className="prose prose-xs dark:prose-invert">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{rawResult}</ReactMarkdown>
-                </div>
-              ) : (
-                "No relevant facts found in the knowledge base."
-              )}
-            </div>
-          )
+              </div>
+            )}
+
+            {!facts.length && !textContent.trim() && (
+              <div className="text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex items-center gap-2">
+                <Info className="h-3.3 w-3.5" />
+                No relevant insights found.
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse py-2">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -220,7 +252,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         )}
       </div>
     );
-  } else if (isPPT || isPDF) {
+  } else if (isPPT || isPDF || isDoc) {
     const titleVal = args?.title || details?.title || "";
     bodyContent = (
       <div className="py-1 space-y-1">
@@ -231,7 +263,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           </div>
         )}
         <div className="flex items-center gap-1.5 mt-1">
-          <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+          <div className={cn("h-1.5 w-1.5 rounded-full", isDoc ? "bg-blue-500" : "bg-green-500")} />
           <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Document Updated</span>
         </div>
       </div>
@@ -251,8 +283,8 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         className="flex items-center justify-between w-full text-muted-foreground transition-colors py-1 text-[10px] hover:text-foreground"
       >
         <div className="flex items-center gap-2">
-          <div className={cn(!isCompleted && !isThink && "animate-spin-slow")}>
-            {icon}
+          <div className={cn(!isCompleted && "animate-spin-slow")}>
+            {isThink && !isCompleted ? <Loader2 className="h-3 w-3" /> : icon}
           </div>
           <span className="font-semibold tracking-tight uppercase">{title}</span>
           {!isCompleted && <span className="flex h-1 w-1 rounded-full bg-primary animate-pulse ml-1" />}
@@ -296,26 +328,47 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
     return out.join("\n");
   };
 
-  // Preprocess content to ensure better markdown rendering
-  const processedContent = React.useMemo(() => {
-    const rawContent = typeof content === 'string' ? content : '';
-    let raw = rawContent
+  const processContent = (rawContent: string): string => {
+    const raw = (rawContent || "")
       .replace(/\\n/g, "\n")
       .replace(/\r\n/g, "\n");
 
     // Unwrap tables from markdown code blocks
-    // This allows tables wrapped in ```markdown or ``` to render as actual tables instead of raw code
-    raw = raw.replace(/```(?:markdown)?\s*?\n\s*(\|[\s\S]*?\|)\s*?\n\s*?```/g, (match, table) => {
+    const unwrapped = raw.replace(/```(?:markdown)?\s*?\n\s*(\|[\s\S]*?\|)\s*?\n\s*?```/g, (match, table) => {
       return "\n" + table + "\n";
     });
 
-    return normalizeTables(raw
+    return normalizeTables(unwrapped
       .replace(/\\\*\\\*/g, "**")
       .replace(/([^\n])\n(#+\s)/g, "$1\n\n$2")
       .replace(/([^\n])\n(```)/g, "$1\n\n$2"));
-  }, [content]);
+  };
 
-  const showTyping = role === "assistant" && isLoading && processedContent.trim().length === 0;
+  const showTyping = role === "assistant" && isLoading && (!content || content.trim().length === 0);
+
+  // Parse content to find interleaved tool calls
+  const { segments, hasMarkers, orphanedToolCalls } = React.useMemo(() => {
+    const toolCallRegex = /(?:\n|^):::tool_call:([^:]+):::(?:\n|$)/g;
+    const parts = (content || "").split(toolCallRegex);
+    const resultSegments: { type: 'text' | 'tool'; content?: string; id?: string }[] = [];
+    const usedToolCallIds = new Set<string>();
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (i % 2 === 0) {
+        // Text segment
+        if (part) resultSegments.push({ type: 'text', content: part });
+      } else {
+        // Tool call ID segment
+        const callId = part.trim();
+        resultSegments.push({ type: 'tool', id: callId });
+        usedToolCallIds.add(callId);
+      }
+    }
+
+    const orphans = (tool_calls || []).filter(tc => !usedToolCallIds.has(tc.call_id));
+    return { segments: resultSegments, hasMarkers: parts.length > 1, orphanedToolCalls: orphans };
+  }, [content, tool_calls]);
 
   return (
     <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden", isUser ? "justify-end" : "justify-start")}>
@@ -327,9 +380,19 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
           {timestamp && <span className="text-xs text-muted-foreground/60">{timestamp}</span>}
         </div>
 
-        {tool_calls && tool_calls.length > 0 && (
+        {/* Legacy behavior: if no markers found, render all tool calls at the top */}
+        {!hasMarkers && tool_calls && tool_calls.length > 0 && (
           <div className="w-full mb-2 space-y-2">
             {tool_calls.map((tc, idx) => (
+              <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
+            ))}
+          </div>
+        )}
+
+        {/* If markers exist, render any orphaned tool calls at the top (or could be bottom) */}
+        {hasMarkers && orphanedToolCalls.length > 0 && (
+          <div className="w-full mb-2 space-y-2">
+            {orphanedToolCalls.map((tc, idx) => (
               <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
             ))}
           </div>
@@ -367,86 +430,103 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
                 ))}
               </div>
             )}
+
+            {segments.map((segment, idx) => {
+              if (segment.type === 'tool' && segment.id) {
+                const tc = tool_calls?.find(t => t.call_id === segment.id);
+                if (tc) return <div key={`tool-${segment.id}-${idx}`} className="not-prose my-2"><ToolCallItem toolCall={tc} /></div>;
+                return null;
+              } else if (segment.type === 'text' && segment.content) {
+                const processed = processContent(segment.content);
+                // If checking for empty processed content to avoid empty paragraphs? 
+                // ReactMarkdown handles it mostly.
+                if (!processed.trim()) return null;
+                return (
+                  <ReactMarkdown
+                    key={`text-${idx}`}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      strong({ children, ...props }) {
+                        return (
+                          <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
+                            {children}
+                          </strong>
+                        );
+                      },
+                      blockquote({ children }) {
+                        return (
+                          <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
+                            {children}
+                          </blockquote>
+                        );
+                      },
+                      ul({ children }) {
+                        return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
+                      },
+                      ol({ children }) {
+                        return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
+                      },
+                      li({ children }) {
+                        return <li className="pl-1">{children}</li>;
+                      },
+                      hr() {
+                        return <hr className="my-6 border-border" />;
+                      },
+                      code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+                        const text = String(children ?? "");
+                        const isBlock =
+                          inline === false ||
+                          (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
+
+                        return isBlock ? (
+                          <pre className="rounded-md p-4 my-4 overflow-x-auto w-full bg-muted/20 border border-border/50 text-foreground">
+                            <code className={cn("text-[11px] font-mono", className)} {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        ) : (
+                          <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      table({ children }) {
+                        return (
+                          <div className="overflow-x-auto my-6 border border-border/60 rounded-lg shadow-sm block w-full bg-card">
+                            <table className="text-[12px] text-left border-collapse table-auto w-full">
+                              {children}
+                            </table>
+                          </div>
+                        );
+                      },
+                      thead({ children }) {
+                        return <thead className="bg-muted/40 border-b border-border/60">{children}</thead>;
+                      },
+                      th({ children }) {
+                        return <th className="px-4 py-2.5 font-semibold border-r border-border/40 last:border-r-0 whitespace-nowrap text-foreground/80">{children}</th>;
+                      },
+                      td({ children }) {
+                        return <td className="px-4 py-2.5 border-t border-border/40 border-r border-border/40 last:border-r-0 min-w-[120px] text-foreground/70 leading-relaxed">{children}</td>;
+                      },
+                      a({ children, href }) {
+                        return (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
+                            {children}
+                          </a>
+                        );
+                      }
+                    }}
+                  >
+                    {processed}
+                  </ReactMarkdown>
+                );
+              }
+              return null;
+            })}
+
             {showTyping ? (
               <TypingDots />
-            ) : (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  strong({ children, ...props }) {
-                    return (
-                      <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
-                        {children}
-                      </strong>
-                    );
-                  },
-                  blockquote({ children }) {
-                    return (
-                      <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
-                        {children}
-                      </blockquote>
-                    );
-                  },
-                  ul({ children }) {
-                    return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
-                  },
-                  ol({ children }) {
-                    return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
-                  },
-                  li({ children }) {
-                    return <li className="pl-1">{children}</li>;
-                  },
-                  hr() {
-                    return <hr className="my-6 border-border" />;
-                  },
-                  code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
-                    const text = String(children ?? "");
-                    const isBlock =
-                      inline === false ||
-                      (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
-
-                    return isBlock ? (
-                      <pre className="rounded-md p-4 my-4 overflow-x-auto w-full bg-muted/20 border border-border/50 text-foreground">
-                        <code className={cn("text-[11px] font-mono", className)} {...props}>
-                          {children}
-                        </code>
-                      </pre>
-                    ) : (
-                      <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  table({ children }) {
-                    return (
-                      <div className="overflow-x-auto my-6 border border-border/60 rounded-lg shadow-sm block w-full bg-card">
-                        <table className="text-[12px] text-left border-collapse table-auto w-full">
-                          {children}
-                        </table>
-                      </div>
-                    );
-                  },
-                  thead({ children }) {
-                    return <thead className="bg-muted/40 border-b border-border/60">{children}</thead>;
-                  },
-                  th({ children }) {
-                    return <th className="px-4 py-2.5 font-semibold border-r border-border/40 last:border-r-0 whitespace-nowrap text-foreground/80">{children}</th>;
-                  },
-                  td({ children }) {
-                    return <td className="px-4 py-2.5 border-t border-border/40 border-r border-border/40 last:border-r-0 min-w-[120px] text-foreground/70 leading-relaxed">{children}</td>;
-                  },
-                  a({ children, href }) {
-                    return (
-                      <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
-                        {children}
-                      </a>
-                    );
-                  }
-                }}
-              >
-                {processedContent}
-              </ReactMarkdown>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

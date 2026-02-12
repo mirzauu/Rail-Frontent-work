@@ -11,10 +11,19 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FullscreenLoader } from "@/components/shared/Spinner";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Search,
   Upload,
-  Plus,
   Link2,
   FileText,
   File,
@@ -23,6 +32,7 @@ import {
   Folder,
   Tag,
   Bot,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -75,7 +85,88 @@ export default function Knowledge() {
   const queryClient = useQueryClient();
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [activeFolder, setActiveFolder] = useState("All Documents");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState("");
+  const [newDocDescription, setNewDocDescription] = useState("");
+  const [newDocScope, setNewDocScope] = useState("");
+  const [newDocCategory, setNewDocCategory] = useState("");
+  const [newDocTags, setNewDocTags] = useState("");
+  const [selectedFileForDialog, setSelectedFileForDialog] = useState<File | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const dialogFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const startSimulatedProgress = () => {
+    setUploadProgress(0);
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          return 95;
+        }
+        // Realistic progress: faster at first, then slower
+        const diff = Math.random() * 10;
+        const next = prev + (prev < 50 ? diff : diff / 2);
+        return Math.min(next, 95);
+      });
+    }, 200);
+    return interval;
+  };
+
+  const handleDialogUpload = async () => {
+    if (!selectedFileForDialog) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a file to upload.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const progressInterval = startSimulatedProgress();
+    try {
+      setIsCreating(true);
+      
+      await api.uploadDocument(selectedFileForDialog, {
+        title: newDocTitle || selectedFileForDialog.name,
+        description: newDocDescription,
+        scope: newDocScope,
+        category: newDocCategory,
+        tags: newDocTags
+      });
+
+      setUploadProgress(100);
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully.",
+      });
+
+      setTimeout(() => {
+        setIsCreateDialogOpen(false);
+        setNewDocTitle("");
+        setNewDocDescription("");
+        setNewDocScope("");
+        setNewDocCategory("");
+        setNewDocTags("");
+        setSelectedFileForDialog(null);
+      }, 500);
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      clearInterval(progressInterval);
+      setTimeout(() => {
+        setIsCreating(false);
+        setUploadProgress(0);
+      }, 500);
+    }
+  };
 
   // Compute dynamic folder counts and filtered docs
   const { folderStats, filteredDocs } = useMemo(() => {
@@ -112,25 +203,11 @@ export default function Knowledge() {
               Connect Source
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => toast({
-                title: "Upload disabled",
-                description: "Please contact the developer to upload a new document.",
-              })}
+              onClick={() => setIsCreateDialogOpen(true)}
             >
               <Upload className="mr-2 h-4 w-4" />
               Upload
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => toast({
-                title: "Action disabled",
-                description: "Please contact the developer to create a new document.",
-              })}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New Doc
             </Button>
           </div>
         }
@@ -195,7 +272,8 @@ export default function Knowledge() {
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
                     <th className="p-4">Title</th>
-                    <th className="p-4">Tags</th>
+                    <th className="p-4">Description</th>
+                    <th className="p-4">Status</th>
                     <th className="p-4">Scope</th>
                     <th className="p-4">Source</th>
                     <th className="p-4">Uploader</th>
@@ -211,12 +289,8 @@ export default function Knowledge() {
                           <Skeleton className="h-4 w-40" />
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div className="flex gap-1.5">
-                          <Skeleton className="h-4 w-12 rounded-full" />
-                          <Skeleton className="h-4 w-16 rounded-full" />
-                        </div>
-                      </td>
+                      <td className="p-4"><Skeleton className="h-4 w-48" /></td>
+                      <td className="p-4"><Skeleton className="h-4 w-16 rounded-full" /></td>
                       <td className="p-4"><Skeleton className="h-4 w-16 rounded-full" /></td>
                       <td className="p-4"><Skeleton className="h-4 w-20" /></td>
                       <td className="p-4"><Skeleton className="h-4 w-24" /></td>
@@ -235,7 +309,8 @@ export default function Knowledge() {
                 <thead className="sticky top-0 bg-card z-10">
                   <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
                     <th className="p-4">Title</th>
-                    <th className="p-4">Tags</th>
+                    <th className="p-4">Description</th>
+                    <th className="p-4">Status</th>
                     <th className="p-4">Scope</th>
                     <th className="p-4">Source</th>
                     <th className="p-4">Uploader</th>
@@ -256,16 +331,20 @@ export default function Knowledge() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex gap-1.5 flex-wrap">
-                          {(doc.tags || []).map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2 max-w-md">
+                          {doc.description || "No description provided."}
+                        </p>
+                      </td>
+                      <td className="p-4">
+                        <Badge 
+                          variant="outline"
+                          className={cn(
+                            "capitalize",
+                            doc.status === 'ingested' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : ""
+                          )}
+                        >
+                          {doc.status}
+                        </Badge>
                       </td>
                       <td className="p-4">
                         <Badge variant="outline">{doc.scope}</Badge>
@@ -325,7 +404,14 @@ export default function Knowledge() {
 
             {/* Assignment Section */}
             <div className="space-y-4 border-t border-border pt-4">
-              <h4 className="text-sm font-medium text-foreground">Assignment</h4>
+              <h4 className="text-sm font-medium text-foreground">Document Details</h4>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Description</Label>
+                <p className="text-sm text-foreground leading-relaxed">
+                  {selectedDoc.description || "No description provided."}
+                </p>
+              </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -358,31 +444,34 @@ export default function Knowledge() {
               </div>
             </div>
 
-            {/* Tags */}
-            <div className="space-y-3 border-t border-border pt-4">
-              <Label className="text-sm">Tags</Label>
-              <div className="flex flex-wrap gap-2">
-                {(selectedDoc.tags || []).map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                <button className="rounded-full border border-dashed border-border px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted">
-                  + Add tag
-                </button>
-              </div>
-            </div>
-
             {/* Activity */}
             <div className="space-y-3 border-t border-border pt-4">
               <h4 className="text-sm font-medium text-foreground">Activity</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
-                <p>Ingested: {new Date(selectedDoc.created_at).toLocaleString()}</p>
-                <p>Last indexed: {new Date(selectedDoc.created_at).toLocaleString()}</p>
-                <p>Sync status: Active</p>
+                <p className="flex justify-between">
+                  <span>Status:</span>
+                  <Badge 
+                    variant="outline"
+                    className={cn(
+                      "capitalize h-5",
+                      selectedDoc.status === 'ingested' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : ""
+                    )}
+                  >
+                    {selectedDoc.status}
+                  </Badge>
+                </p>
+                <p className="flex justify-between">
+                  <span>Ingested:</span>
+                  <span>{new Date(selectedDoc.created_at).toLocaleString()}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span>Last indexed:</span>
+                  <span>{new Date(selectedDoc.created_at).toLocaleString()}</span>
+                </p>
+                <p className="flex justify-between">
+                  <span>Sync status:</span>
+                  <span className="text-emerald-500">Active</span>
+                </p>
               </div>
             </div>
 
@@ -393,6 +482,123 @@ export default function Knowledge() {
           </div>
         )}
       </SidePanel>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Upload New Document</DialogTitle>
+            <DialogDescription>
+              Select a file and provide metadata for your knowledge base.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="dialog-file">File</Label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="dialog-file"
+                  ref={dialogFileInputRef}
+                  className="hidden"
+                  accept=".pdf,.docx"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const extension = file.name.split('.').pop()?.toLowerCase();
+                      if (extension !== 'pdf' && extension !== 'docx') {
+                        toast({
+                          title: "Unsupported File Format",
+                          description: "Only PDF and DOCX files are supported. Please convert your file.",
+                          variant: "destructive",
+                        });
+                        e.target.value = ""; // Clear the input
+                        setSelectedFileForDialog(null);
+                        return;
+                      }
+                      setSelectedFileForDialog(file);
+                    }
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                  onClick={() => dialogFileInputRef.current?.click()}
+                >
+                  {selectedFileForDialog ? selectedFileForDialog.name : "Choose file..."}
+                </Button>
+                {selectedFileForDialog && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedFileForDialog(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="grid gap-3">
+                <Label htmlFor="title" className="text-base">Title</Label>
+                <Input
+                  id="title"
+                  placeholder="Defaults to filename"
+                  value={newDocTitle}
+                  onChange={(e) => setNewDocTitle(e.target.value)}
+                  className="h-12 text-base"
+                />
+              </div>
+              <div className="grid gap-3">
+                <Label htmlFor="category" className="text-base">Category</Label>
+                <Input
+                  id="category"
+                  placeholder="e.g. strategy"
+                  value={newDocCategory}
+                  onChange={(e) => setNewDocCategory(e.target.value)}
+                  className="h-12 text-base"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="tags" className="text-base">Tags</Label>
+              <Input
+                id="tags"
+                placeholder="comma separated"
+                value={newDocTags}
+                onChange={(e) => setNewDocTags(e.target.value)}
+                className="h-12 text-base"
+              />
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="description" className="text-base">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Brief description of the document"
+                className="min-h-[150px] text-base"
+                value={newDocDescription}
+                onChange={(e) => setNewDocDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          {isCreating && (
+            <div className="space-y-2 mb-4">
+              <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                <span>Uploading document...</span>
+                <span>{Math.round(uploadProgress)}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} disabled={isCreating}>
+              Cancel
+            </Button>
+            <Button onClick={handleDialogUpload} disabled={isCreating}>
+              {isCreating ? "Uploading..." : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

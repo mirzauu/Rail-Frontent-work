@@ -206,11 +206,11 @@ export class ApiClient {
     const url = this.baseUrl + "api/v1/documents/upload";
     const fd = new FormData();
     fd.append("file", file);
-    if (opts?.title !== undefined) fd.append("title", opts.title ?? "");
-    if (opts?.description !== undefined) fd.append("description", opts.description ?? "");
-    if (opts?.scope !== undefined) fd.append("scope", opts.scope ?? "");
-    if (opts?.category !== undefined) fd.append("category", opts.category ?? "");
-    if (opts?.tags !== undefined) fd.append("tags", opts.tags ?? "");
+    fd.append("title", opts.title ?? "");
+    fd.append("description", opts.description ?? "");
+    fd.append("scope", opts.scope ?? "");
+    fd.append("category", opts.category ?? "");
+    fd.append("tags", opts.tags ?? "");
 
     const headers: Record<string, string> = {};
     const token = this.getToken();

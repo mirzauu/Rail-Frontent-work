@@ -24,7 +24,6 @@ import {
   Loader2,
   CheckSquare,
   Send,
-  Mic,
   DollarSign,
   Settings,
   Users,
@@ -33,6 +32,7 @@ import {
   Plus,
   Check,
   Zap,
+  Flame,
   Bot,
   Shield,
   Layers,
@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
 import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
 import { PDFViewer, type PDF } from "@/components/shared/PDFViewer";
+import { DocViewer, type Doc } from "@/components/shared/DocViewer";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -403,6 +404,7 @@ export default function Agents() {
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState("auto");
   const [selectedCapability, setSelectedCapability] = useState("auto");
+  const [isBrutalMode, setIsBrutalMode] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -429,13 +431,21 @@ export default function Agents() {
   const [activePDFIndex, setActivePDFIndex] = useState(0);
   const currentPDF = allPDFs[activePDFIndex] || null;
   const [isPDFLargeView, setIsPDFLargeView] = useState(false);
-  const [viewMode, setViewMode] = useState<'ppt' | 'pdf'>('ppt');
+
+  const [allDocs, setAllDocs] = useState<Doc[]>([]);
+  const [activeDocIndex, setActiveDocIndex] = useState(0);
+  const currentDoc = allDocs[activeDocIndex] || null;
+  const [isDocLargeView, setIsDocLargeView] = useState(false);
+
+  const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc'>('ppt');
 
   useEffect(() => {
     let ppts: PPT[] = [];
     let pdfs: PDF[] = [];
+    let docs: Doc[] = [];
     let currentPpt: PPT | null = null;
     let currentPdf: PDF | null = null;
+    let currentDoc: Doc | null = null;
 
     messages.forEach(m => {
       m.tool_calls?.forEach(tc => {
@@ -472,6 +482,23 @@ export default function Agents() {
             });
           }
         }
+
+        if (tc.tool_name === 'create_word_doc') {
+          currentDoc = {
+            title: tc.tool_call_details?.summary?.args?.title || 'New Document',
+            sections: []
+          };
+          docs.push(currentDoc);
+        } else if (tc.tool_name === 'add_word_section' && currentDoc) {
+          const args = tc.tool_call_details?.summary?.args;
+          if (args) {
+            currentDoc.sections.push({
+              title: args.title || 'Untitled Section',
+              content: args.content || '',
+              section_type: args.section_type || 'text'
+            });
+          }
+        }
       });
     });
 
@@ -497,11 +524,17 @@ export default function Agents() {
       }
     }
 
-    // Only auto-collapse if we have messages but absolutely NO documents found via parsing OR existing state
-    if (messages.length > 0 && ppts.length === 0 && pdfs.length === 0 && !currentPPT && !currentPDF && isRightSidebarOpen) {
-      setIsRightSidebarOpen(false);
+    if (docs.length > 0) {
+      setAllDocs(docs);
+      const lastMsg = messages[messages.length - 1];
+      const hasRecentDocTool = lastMsg?.tool_calls?.some(tc => ['create_word_doc', 'add_word_section'].includes(tc.tool_name));
+      if (hasRecentDocTool) {
+        setActiveDocIndex(docs.length - 1);
+        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+        setViewMode('doc');
+      }
     }
-  }, [messages, isRightSidebarOpen]);
+  }, [messages]); // Removed auto-collapse logic that was causing flickering during history loads // Removed isRightSidebarOpen from dependencies to prevent auto-close loop on manual toggle
 
   const [expandedReasonings, setExpandedReasonings] = useState<Record<number, boolean>>({});
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
@@ -607,6 +640,35 @@ export default function Agents() {
       } catch (e) {
         console.error("Failed to parse PDF history", e);
         setAllPDFs([]);
+      }
+
+      try {
+        const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
+        if (doclist.length > 0) {
+          setAllDocs(doclist.map((doc: any) => ({
+            title: doc.title || "Untitled Document",
+            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+              title: s.title || "Untitled Section",
+              content: s.content || "",
+              section_type: s.section_type || "text"
+            })) : []
+          })));
+          setActiveDocIndex(doclist.length - 1);
+          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+          // Use local checks for PPT/PDF existence instead of stale state
+          const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) || 
+                         (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                         
+          if (!hasPPT && !hasPDF) {
+            setViewMode('doc');
+          }
+        } else {
+          setAllDocs([]);
+        }
+      } catch (e) {
+        console.error("Failed to parse Word Doc history", e);
+        setAllDocs([]);
       }
       const arr = Array.isArray(d?.messages) ? d.messages : [];
       const conv = arr.map((m: HistoryMessage, idx: number) => {
@@ -734,10 +796,11 @@ export default function Agents() {
               : selectedModel === "claude"
                 ? "anthropic/claude-opus-4-6"
                 : selectedModel;
-      const agentValue =
-        selectedCapability === "auto"
+      const agentValue = isBrutalMode
+        ? "brutall"
+        : (selectedCapability === "auto"
           ? "auto"
-          : selectedCapability.toLowerCase().replace(/-/g, "_");
+          : selectedCapability.toLowerCase().replace(/-/g, "_"));
 
       const formData = new FormData();
       formData.append("query", inputMessage);
@@ -813,6 +876,8 @@ export default function Agents() {
                 };
               } else {
                 newToolCalls.push(incoming);
+                // Mark the location of this tool call in the content stream
+                newContent += `\n:::tool_call:${incoming.call_id}:::\n`;
               }
             });
           }
@@ -842,13 +907,16 @@ export default function Agents() {
   const activeViewer =
     (viewMode === 'ppt' && currentPPT) ? 'ppt' :
       (viewMode === 'pdf' && currentPDF) ? 'pdf' :
-        currentPPT ? 'ppt' :
-          currentPDF ? 'pdf' :
-            null;
+        (viewMode === 'doc' && currentDoc) ? 'doc' :
+          currentPPT ? 'ppt' :
+            currentPDF ? 'pdf' :
+              currentDoc ? 'doc' :
+                null;
 
   const isExpandedView = isRightSidebarOpen && (
     (activeViewer === 'ppt' && isPPTLargeView) ||
-    (activeViewer === 'pdf' && isPDFLargeView)
+    (activeViewer === 'pdf' && isPDFLargeView) ||
+    (activeViewer === 'doc' && isDocLargeView)
   );
 
   return (
@@ -902,6 +970,8 @@ export default function Agents() {
                 setActivePPTIndex(0);
                 setAllPDFs([]);
                 setActivePDFIndex(0);
+                setAllDocs([]);
+                setActiveDocIndex(0);
                 setIsRightSidebarOpen(false);
               }}
             >
@@ -981,14 +1051,50 @@ export default function Agents() {
                       setActivePDFIndex(0);
                     }
 
-                    // Automatically close sidebar if no documents are present in this chat
-                    const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                    const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                      (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-
-                    if (!hasPPT && !hasPDF) {
-                      setIsRightSidebarOpen(false);
+                    try {
+                      const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
+                      if (doclist.length > 0) {
+                        setAllDocs(doclist.map((doc: any) => ({
+                          title: doc.title || "Untitled Document",
+                          sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                            title: s.title || "Untitled Section",
+                            content: s.content || "",
+                            section_type: s.section_type || "text"
+                          })) : []
+                        })));
+                        setActiveDocIndex(doclist.length - 1);
+                        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                        
+                        // If no PPT/PDF, switch view to DOC
+                        const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                        const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                          (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                          
+                        if (!hasPPT && !hasPDF) {
+                          setViewMode('doc');
+                        }
+                      } else {
+                        setAllDocs([]);
+                        setActiveDocIndex(0);
+                      }
+                    } catch (e) {
+                      console.error("Failed to parse Word Doc history", e);
+                      setAllDocs([]);
+                      setActiveDocIndex(0);
                     }
+
+                      // Automatically close sidebar if no documents are present in this chat
+                      const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                      const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                        (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                      const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
+  
+                      if (!hasPPT && !hasPDF && !hasDoc) {
+                        setIsRightSidebarOpen(false);
+                      } else {
+                        // Ensure it's open if we have content
+                        setIsRightSidebarOpen(true);
+                      }
                     const arr = Array.isArray(d?.messages) ? d.messages : [];
                     const conv = arr.map((m: HistoryMessage, idx: number) => ({
                       id: Date.now() + idx,
@@ -1213,7 +1319,7 @@ export default function Agents() {
                 )}
                 <input
                   type="text"
-                  placeholder="Ask a follow-up"
+                  placeholder="Get a detailed report"
                   className="w-full bg-transparent text-foreground placeholder-muted-foreground text-sm outline-none"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
@@ -1224,12 +1330,39 @@ export default function Agents() {
               {/* Toolbar */}
               <div className="flex items-center justify-between px-3 py-2">
                 {/* Left side icons */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
 
                 </div>
 
                 {/* Right side icons */}
                 <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(
+                          "h-8 px-3 rounded-full transition-all duration-200 group relative flex items-center gap-2",
+                          isBrutalMode
+                            ? "text-orange-500 hover:text-orange-600 bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                        onClick={() => setIsBrutalMode(!isBrutalMode)}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Flame className="h-3.5 w-3.5" />
+                          <span className="text-sm font-medium">Brutal</span>
+                        </div>
+                        {isBrutalMode && (
+                          <X className="h-3.5 w-3.5 ml-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-[200px] text-xs">
+                      <p>{isBrutalMode ? "Deselect Brutal" : "Choose brutal for debate, fast response and honest review. It is not capable of document generation."}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
                   <input
                     type="file"
                     multiple
@@ -1274,7 +1407,7 @@ export default function Agents() {
                         <p>Model</p>
                       </TooltipContent>
                     </Tooltip>
-                    <DropdownMenuContent align="start" className="w-52">
+                    <DropdownMenuContent align="end" className="w-52">
                       {aiModels.map((model) => (
                         <DropdownMenuItem
                           key={model.id}
@@ -1298,60 +1431,83 @@ export default function Agents() {
                   </DropdownMenu>
 
                   {/* Agent Capability Selector */}
-                  <DropdownMenu>
+                  {isBrutalMode ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
+                        <div className="cursor-not-allowed">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            disabled
+                            className="h-8 w-8 text-muted-foreground opacity-50 pointer-events-none"
                           >
                             <Layers className="h-4 w-4" />
                           </Button>
-                        </DropdownMenuTrigger>
+                        </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Agents</p>
+                        <p>Deselect the "Brutal mode" to choose agents</p>
                       </TooltipContent>
                     </Tooltip>
-                    <DropdownMenuContent align="start" className="w-56">
-                      {(agentCapabilities[currentAgent] || agentCapabilities.cso).map((capability) => (
-                        <DropdownMenuItem
-                          key={capability.id}
-                          onClick={() => setSelectedCapability(capability.id)}
-                          className="flex items-center gap-2 py-2 cursor-pointer"
-                        >
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">{capability.name}</div>
-                            <div className="text-xs text-muted-foreground">{capability.description}</div>
-                          </div>
-                          {selectedCapability === capability.id && (
-                            <Check className="h-4 w-4 text-primary" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-
-
-
-
+                  ) : (
+                    <DropdownMenu>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            >
+                              <Layers className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Agents</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <DropdownMenuContent align="end" className="w-56">
+                        {(agentCapabilities[currentAgent] || agentCapabilities.cso).map((capability) => (
+                          <DropdownMenuItem
+                            key={capability.id}
+                            onClick={() => {
+                              setSelectedCapability(capability.id);
+                              setIsBrutalMode(false);
+                            }}
+                            className="flex items-center gap-2 py-2 cursor-pointer"
+                          >
+                            <div className="flex-1">
+                              <div className="font-medium text-sm">{capability.name}</div>
+                              <div className="text-xs text-muted-foreground">{capability.description}</div>
+                            </div>
+                            {selectedCapability === capability.id && (
+                              <Check className="h-4 w-4 text-primary" />
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
 
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         size="icon"
                         className={cn(
-                          "h-8 w-8 rounded-lg transition-all duration-200",
-                          inputMessage.trim()
-                            ? "bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer"
+                          "h-8 w-8 rounded-full transition-all duration-200",
+                          inputMessage.trim() && !isStreaming
+                            ? "bg-amber-500 hover:bg-amber-600 text-white cursor-pointer shadow-sm"
                             : "bg-muted hover:bg-muted/80 text-muted-foreground cursor-not-allowed"
                         )}
                         onClick={handleSendMessage}
                         disabled={!inputMessage.trim() || isStreaming}
                       >
-                        <Send className="h-4 w-4" />
+                        {isStreaming ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -1372,50 +1528,67 @@ export default function Agents() {
           isRightSidebarOpen
             ? isExpandedView
               ? "flex-1 border-l"
-              : (currentPPT || currentPDF) ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
+              : (currentPPT || currentPDF || currentDoc) ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-border/50 h-[60px] min-w-[300px]">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-lg">
-              {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : "Context"}
+              {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : viewMode === 'doc' ? "Document" : "Context"}
             </h2>
-            {currentPPT && currentPDF && (
+            {(currentPPT || currentPDF || currentDoc) && (
               <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
-                <Button
-                  variant={viewMode === 'ppt' ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setViewMode('ppt')}
-                >
-                  <Presentation className="h-3 w-3" />
-                  PPT
-                </Button>
-                <div className="w-[1px] h-3 bg-border mx-1" />
-                <Button
-                  variant={viewMode === 'pdf' ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setViewMode('pdf')}
-                >
-                  <FileText className="h-3 w-3" />
-                  PDF
-                </Button>
+                {currentPPT && (
+                  <Button
+                    variant={viewMode === 'ppt' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() => setViewMode('ppt')}
+                  >
+                    <Presentation className="h-3 w-3" />
+                    PPT
+                  </Button>
+                )}
+                {currentPPT && (currentPDF || currentDoc) && <div className="w-[1px] h-3 bg-border mx-1" />}
+                {currentPDF && (
+                  <Button
+                    variant={viewMode === 'pdf' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() => setViewMode('pdf')}
+                  >
+                    <FileText className="h-3 w-3" />
+                    PDF
+                  </Button>
+                )}
+                {(currentPPT || currentPDF) && currentDoc && <div className="w-[1px] h-3 bg-border mx-1" />}
+                {currentDoc && (
+                  <Button
+                    variant={viewMode === 'doc' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() => setViewMode('doc')}
+                  >
+                    <FileText className="h-3 w-3 text-blue-500" />
+                    Doc
+                  </Button>
+                )}
               </div>
             )}
 
             {/* Pagination for multiple documents */}
-            {((viewMode === 'ppt' && allPPTs.length > 1) || (viewMode === 'pdf' && allPDFs.length > 1)) && (
+            {((viewMode === 'ppt' && allPPTs.length > 1) || (viewMode === 'pdf' && allPDFs.length > 1) || (viewMode === 'doc' && allDocs.length > 1)) && (
               <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1 gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : activePDFIndex === 0}
+                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : viewMode === 'pdf' ? activePDFIndex === 0 : activeDocIndex === 0}
                   onClick={() => {
                     if (viewMode === 'ppt') setActivePPTIndex(prev => Math.max(0, prev - 1));
-                    else setActivePDFIndex(prev => Math.max(0, prev - 1));
+                    else if (viewMode === 'pdf') setActivePDFIndex(prev => Math.max(0, prev - 1));
+                    else setActiveDocIndex(prev => Math.max(0, prev - 1));
                   }}
                 >
                   <ChevronLeft className="h-3 w-3" />
@@ -1423,17 +1596,20 @@ export default function Agents() {
                 <span className="text-[10px] font-mono px-1">
                   {viewMode === 'ppt'
                     ? `${activePPTIndex + 1}/${allPPTs.length}`
-                    : `${activePDFIndex + 1}/${allPDFs.length}`
+                    : viewMode === 'pdf'
+                      ? `${activePDFIndex + 1}/${allPDFs.length}`
+                      : `${activeDocIndex + 1}/${allDocs.length}`
                   }
                 </span>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  disabled={viewMode === 'ppt' ? activePPTIndex === allPPTs.length - 1 : activePDFIndex === allPDFs.length - 1}
+                  disabled={viewMode === 'ppt' ? activePPTIndex === allPPTs.length - 1 : viewMode === 'pdf' ? activePDFIndex === allPDFs.length - 1 : activeDocIndex === allDocs.length - 1}
                   onClick={() => {
                     if (viewMode === 'ppt') setActivePPTIndex(prev => Math.min(allPPTs.length - 1, prev + 1));
-                    else setActivePDFIndex(prev => Math.min(allPDFs.length - 1, prev + 1));
+                    else if (viewMode === 'pdf') setActivePDFIndex(prev => Math.min(allPDFs.length - 1, prev + 1));
+                    else setActiveDocIndex(prev => Math.min(allDocs.length - 1, prev + 1));
                   }}
                 >
                   <ChevronRight className="h-3 w-3" />
@@ -1464,6 +1640,12 @@ export default function Agents() {
               isLargeView={isPDFLargeView}
               onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
             />
+          ) : viewMode === 'doc' && currentDoc ? (
+            <DocViewer
+              doc={currentDoc}
+              isLargeView={isDocLargeView}
+              onToggleLargeView={() => setIsDocLargeView(!isDocLargeView)}
+            />
           ) : currentPPT ? (
             <PPTViewer
               ppt={currentPPT}
@@ -1475,6 +1657,12 @@ export default function Agents() {
               pdf={currentPDF}
               isLargeView={isPDFLargeView}
               onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
+            />
+          ) : currentDoc ? (
+            <DocViewer
+              doc={currentDoc}
+              isLargeView={isDocLargeView}
+              onToggleLargeView={() => setIsDocLargeView(!isDocLargeView)}
             />
           ) : (
             <>
