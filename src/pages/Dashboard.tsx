@@ -1,31 +1,24 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
-import { Train, User, Lock, Bot, Database, Server } from "lucide-react";
+import { ArrowRight, MoreHorizontal, Calendar, Plus, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import {
-  faRobot,
   faComments,
-  faBook,
-  faCalendarAlt,
-  faPlus,
   faZap,
   faBrain,
-  faUsers,
-  faProjectDiagram,
-  faDatabase,
-  faCoins,
-  faHistory,
-  faCheckCircle,
-  faExclamationTriangle,
-  faArrowUpRightFromSquare,
-  faChartPie,
   faClock,
   faStar,
-  faSync
+  faUserTie,
+  faHandshake,
+  faChartLine,
+  faBuilding,
+  faServer,
+  faArrowUp,
+  faArrowDown,
+  faExclamationTriangle,
+  faCheckCircle
 } from "@fortawesome/free-solid-svg-icons";
 import { cn } from "@/lib/utils";
 import {
@@ -39,25 +32,68 @@ import {
   Cell,
   PieChart,
   Pie,
+  AreaChart,
+  Area,
 } from "recharts";
 import { useState, useEffect } from "react";
 import { api, DashboardResponse } from "@/lib/api";
 
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
+// --- Components ---
+
+const StatCard = ({ 
+  label, 
+  value, 
+  icon, 
+  trend, 
+  trendValue, 
+  color, 
+  bgColor 
+}: { 
+  label: string; 
+  value: string | number; 
+  icon: any; 
+  trend?: 'up' | 'down' | 'neutral'; 
+  trendValue?: string;
+  color: string;
+  bgColor: string;
+}) => (
+  <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden transition-all hover:shadow-md">
+    <CardContent className="p-6 flex flex-col justify-between h-full relative">
+      <div className="flex justify-between items-start">
+        <span className="text-muted-foreground font-medium text-sm">{label}</span>
+        <div className={cn("h-10 w-10 rounded-full flex items-center justify-center", bgColor, color)}>
+          <FontAwesomeIcon icon={icon} className="h-5 w-5" />
+        </div>
+      </div>
+      <div className="mt-6 space-y-2">
+        <h3 className="text-4xl font-bold tracking-tight text-foreground">{value}</h3>
+        {trend && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className={cn(
+              "rounded-full px-2 py-0.5 text-[11px] font-bold border-0",
+              trend === 'up' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" : 
+              trend === 'down' ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400" :
+              "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+            )}>
+              <FontAwesomeIcon icon={trend === 'up' ? faArrowUp : faArrowDown} className="mr-1 h-2.5 w-2.5" />
+              {trendValue}
+            </Badge>
+            <span className="text-xs text-muted-foreground/70">from last month</span>
+          </div>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// --- Main Dashboard ---
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<'railvision' | 'platform'>('railvision');
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -68,45 +104,33 @@ export default function Dashboard() {
         setError(null);
       } catch (err) {
         console.error("Failed to fetch dashboard:", err);
-        setError("Failed to synchronize dashboard data. Please verify your connection.");
+        setError("Failed to synchronize dashboard data.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboard();
   }, []);
 
-  const currentDate = new Date().toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
-
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] space-y-6">
-        <div className="relative">
-          <div className="h-24 w-24 rounded-full border-t-4 border-b-4 border-primary animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Train className="h-8 w-8 text-primary animate-pulse" />
-          </div>
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-muted-foreground animate-pulse delay-75">Synchronizing your organization metrics</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background">
+        <div className="h-12 w-12 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-6">
-        <Card className="max-w-md border-destructive/20 bg-destructive/5 backdrop-blur-md">
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-slate-50 dark:bg-background">
+        <Card className="max-w-md border-none shadow-lg rounded-3xl">
           <CardContent className="pt-8 pb-8 text-center space-y-4">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-2">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-500 mb-2">
               <FontAwesomeIcon icon={faExclamationTriangle} className="h-8 w-8" />
             </div>
-            <h2 className="text-xl font-bold">Inference Error</h2>
-            <p className="text-muted-foreground">{error || "The dashboard could not be loaded."}</p>
-            <Button onClick={() => window.location.reload()} variant="outline" className="mt-4 border-destructive/20 hover:bg-destructive/10 hover:text-destructive">
-              <FontAwesomeIcon icon={faSync} className="mr-2 h-4 w-4" />
+            <h2 className="text-xl font-bold">Error Loading Dashboard</h2>
+            <p className="text-muted-foreground">{error}</p>
+            <Button onClick={() => window.location.reload()} className="rounded-full bg-emerald-600 hover:bg-emerald-700">
               Retry Connection
             </Button>
           </CardContent>
@@ -115,419 +139,443 @@ export default function Dashboard() {
     );
   }
 
+  // --- Data Preparation ---
+
+  const partners = data.commercial?.partners || [];
+  const accounts = data.commercial?.accounts || [];
+  const performanceStudies = data.commercial?.performance_studies || [];
+
+  const totalFunding = partners.reduce((acc, p) => acc + Number(p.funding_amount_usd), 0);
+  const totalPipeline = accounts.reduce((acc, a) => {
+    const pipeline = a.pipelines[0];
+    return acc + (pipeline && pipeline.arr_potential_cad ? Number(pipeline.arr_potential_cad) : 0);
+  }, 0);
+  
+  const avgImprovement = performanceStudies.reduce((acc, s) => acc + parseFloat(s.improvement_percent), 0);
+  const avgImprovementCount = performanceStudies.length || 1;
+  const avgImprovementValue = (avgImprovement / avgImprovementCount).toFixed(1);
+
+  // Stats for RailVision
+  const railvisionStats = [
+    { label: 'Total Funding', value: `$${(totalFunding / 1000000).toFixed(1)}M`, icon: faHandshake, color: "text-indigo-600", bgColor: "bg-indigo-50" },
+    { label: 'Pipeline Value', value: `$${(totalPipeline / 1000000).toFixed(1)}M`, icon: faChartLine, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+    { label: 'Avg. Improvement', value: `${avgImprovementValue}%`, icon: faZap, color: "text-amber-600", bgColor: "bg-amber-50" },
+    { label: 'Active Partners', value: partners.length, icon: faBuilding, color: "text-blue-600", bgColor: "bg-blue-50" },
+  ];
+
+  // Stats for Platform
+  const formatResponseTime = (ms: number | null | undefined) => ms ? (ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(1)}s`) : 'N/A';
+  const platformStats = [
+    { label: 'Conversations', value: data.stats.total_conversations, icon: faComments, color: "text-blue-600", bgColor: "bg-blue-50" },
+    { label: 'Messages Processed', value: (data.stats.total_messages / 1000).toFixed(1) + 'k', icon: faBrain, color: "text-purple-600", bgColor: "bg-purple-50" },
+    { label: 'Avg. Response', value: formatResponseTime(data.stats.avg_response_time_ms), icon: faClock, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+    { label: 'Satisfaction', value: data.stats.avg_satisfaction?.toFixed(1) || 'N/A', icon: faStar, color: "text-amber-600", bgColor: "bg-amber-50" },
+  ];
+
+  const currentStats = activeView === 'railvision' ? railvisionStats : platformStats;
+
+  // Chart Data
   const quotaItems = [
     { key: 'users', label: 'Users', color: '#3b82f6' },
-    { key: 'agents', label: 'AI Agents', color: '#6366f1' },
-    { key: 'documents', label: 'Knowledge Base', color: '#10b981' },
-    { key: 'storage', label: 'Cloud Storage', color: '#f59e0b' },
+    { key: 'agents', label: 'Agents', color: '#6366f1' },
+    { key: 'documents', label: 'Knowledge', color: '#10b981' },
+    { key: 'storage', label: 'Storage', color: '#f59e0b' },
     { key: 'tokens', label: 'Tokens', color: '#8b5cf6' },
   ];
 
-  const chartData = quotaItems.map(item => {
+  const resourceData = quotaItems.map(item => {
     const quota = data.quotas[item.key];
     return {
       name: item.label,
-      percentage: quota ? Math.min(quota.percentage, 100) : 0,
-      used: quota ? quota.used : 0,
-      max: quota ? quota.max : 0,
-      unit: quota ? quota.unit : '',
+      value: quota ? Math.min(quota.percentage, 100) : 0,
+      displayValue: quota ? `${quota.used}/${quota.max}` : '0/0',
       fill: item.color
     };
   });
 
-  // Filter data for Pie Chart (e.g., resource usage distribution)
-  // Since units differ, we'll visualize the "Percentage Used" distribution to show which resources are under heavy load
-  const pieChartData = chartData.map(item => ({
-    name: item.name,
-    value: item.percentage,
-    fill: item.fill
-  })).filter(item => item.value > 0);
-
-  const mainStats = [
-    { label: 'Total Conversations', value: data.stats.total_conversations, icon: faComments, detail: 'Lifetime interactions' },
-    { label: 'Total Messages', value: data.stats.total_messages, icon: faBrain, detail: 'AI & User exchanges' },
-    { label: 'Avg. Response', value: data.stats.avg_response_time_ms ? `${(data.stats.avg_response_time_ms / 1000).toFixed(1)}s` : 'N/A', icon: faClock, detail: 'System latency' },
-    { label: 'Total Cost', value: data.stats.total_cost_usd || '$0.00', icon: faCoins, detail: 'Current billing cycle' },
-  ];
-
-  const agents = [
-    { name: "Michael", role: "CSO", icon: User, enabled: true, path: "/agents/cso", description: "Chief Security Officer" },
-    { name: "Sarah", role: "CTO", icon: User, enabled: false, path: "", description: "Chief Technology Officer" },
-    { name: "Caroline", role: "CFO", icon: User, enabled: false, path: "", description: "Chief Financial Officer" },
-    { name: "Emily", role: "CMO", icon: User, enabled: false, path: "", description: "Chief Marketing Officer" },
-    { name: "James", role: "COO", icon: User, enabled: false, path: "", description: "Chief Operating Officer" },
-  ];
+  const pieData = resourceData.filter(d => d.value > 0);
 
   return (
-    <div className="animate-fade-in p-6 space-y-8 relative min-h-[calc(100vh-4rem)] max-w-[1600px] mx-auto pb-12">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl text-foreground">
-              {data.org_name} <span className="text-primary">Dashboard</span>
-            </h1>
-          </div>
-          <p className="text-muted-foreground text-lg flex items-center gap-2">
-            <FontAwesomeIcon icon={faCalendarAlt} className="h-4 w-4 opacity-70" />
-            {currentDate} • System Status:
-            <span className="flex items-center gap-1.5 text-emerald-500 font-medium ml-1">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-              {data.subscription_status}
-            </span>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-100 font-sans p-6 md:p-8 lg:p-10 space-y-8">
+      
+      {/* Top Navigation / Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-3">
+            <div className="h-10 w-10 bg-black rounded-xl flex items-center justify-center text-white">
+              <FontAwesomeIcon icon={activeView === 'railvision' ? faBuilding : faServer} />
+            </div>
+            {activeView === 'railvision' ? 'RailVision Status' : 'Platform Status'}
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 font-medium ml-1">
+            Welcome back, here's what's happening today.
           </p>
         </div>
-        <div className="flex items-center gap-3"></div>
+
+        <div className="flex items-center gap-3 bg-white dark:bg-card p-1.5 rounded-full shadow-sm border border-slate-100 dark:border-slate-800">
+          <button
+            onClick={() => setActiveView('railvision')}
+            className={cn(
+              "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300",
+              activeView === 'railvision' 
+                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105" 
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            )}
+          >
+            Business
+          </button>
+          <button
+            onClick={() => setActiveView('platform')}
+            className={cn(
+              "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300",
+              activeView === 'platform' 
+                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105" 
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            )}
+          >
+            Platform
+          </button>
+        </div>
+        
+        <div className="hidden lg:flex items-center gap-3">
+          <Button variant="outline" className="rounded-full h-12 px-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-card text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50">
+            <Calendar className="mr-2 h-4 w-4" /> {new Date().toLocaleDateString()}
+          </Button>
+        </div>
       </div>
 
-      {/* Main Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {mainStats.map((stat, idx) => (
-          <Card key={idx} className="border-none bg-card/50 backdrop-blur-xl shadow-sm hover:shadow-md transition-all group overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
-                  <FontAwesomeIcon icon={stat.icon} className="h-5 w-5" />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-3xl font-black tracking-tight">{stat.value}</h3>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                <p className="text-xs text-muted-foreground/60">{stat.detail}</p>
-              </div>
-              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <FontAwesomeIcon icon={stat.icon} className="h-24 w-24" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {currentStats.map((stat, idx) => (
+          <StatCard key={idx} {...stat} trend={stat.trend as any} />
         ))}
       </div>
 
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Quotas & Pie Chart Panel */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight">Resource Consumption</h2>
-          </div>
-
-          <div className="w-full">
-            <Card className="border-none bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-500 relative group overflow-hidden">
-               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <FontAwesomeIcon icon={faBrain} className="h-32 w-32 rotate-12 text-primary" />
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+        
+        {/* Left Column (2/3 width) */}
+        <div className="xl:col-span-2 space-y-8">
+          
+          {/* Main Chart Section */}
+          <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+            <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  {activeView === 'railvision' ? 'Pipeline & Revenue' : 'Resource Usage'}
+                </CardTitle>
+                <p className="text-slate-500 font-medium mt-1">
+                  {activeView === 'railvision' ? 'Projected growth over time' : 'Current quota consumption'}
+                </p>
               </div>
-              <CardHeader className="relative z-10">
-                 <CardTitle className="text-xl font-bold flex items-center gap-2">
-                   <span className="p-2 rounded-lg bg-primary/10 text-primary">
-                     <FontAwesomeIcon icon={faZap} className="h-4 w-4" />
-                   </span>
-                   Quota Metrics
-                 </CardTitle>
-                 <CardDescription className="font-medium">Real-time consumption analysis</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6 relative z-10">
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} layout="vertical" margin={{ top: 10, right: 30, left: 20, bottom: 5 }} barGap={2}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="hsl(var(--border))" opacity={0.3} />
-                      <XAxis type="number" hide domain={[0, 100]} />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        width={100} 
-                        tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))', fontWeight: 600 }} 
-                        axisLine={false} 
-                        tickLine={false}
-                        tickMargin={10}
+              <Button variant="ghost" className="h-10 w-10 rounded-full p-0">
+                <MoreHorizontal className="h-5 w-5 text-slate-400" />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  {activeView === 'railvision' ? (
+                    <AreaChart data={accounts.map(a => ({
+                      name: a.account_name,
+                      value: Number(a.pipelines[0]?.arr_potential_cad || 0) / 1000
+                    }))}>
+                      <defs>
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} stroke="hsl(var(--muted))" strokeOpacity={0.2} strokeDasharray="4 4" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+                        itemStyle={{ color: '#10b981', fontWeight: 600 }}
                       />
-                      <Tooltip
-                        cursor={{ fill: 'hsl(var(--muted)/0.1)', radius: 4 }}
+                      <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorValue)" />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={resourceData} barSize={40}>
+                      <CartesianGrid vertical={false} stroke="hsl(var(--muted))" strokeOpacity={0.2} strokeDasharray="4 4" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                      <Tooltip 
+                        cursor={{fill: 'transparent'}}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
-                            const data = payload[0].payload;
                             return (
-                              <div className="rounded-xl border border-border/50 bg-background/90 backdrop-blur-xl p-4 shadow-2xl ring-1 ring-black/5">
-                                <div className="flex flex-col gap-2">
-                                  <span className="text-sm font-bold">{data.name}</span>
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex flex-col">
-                                      <span className="text-xs text-muted-foreground uppercase font-bold">Usage</span>
-                                      <span className="font-mono text-lg font-bold text-foreground">{data.percentage}%</span>
-                                    </div>
-                                    <div className="w-px h-8 bg-border/50" />
-                                    <div className="flex flex-col">
-                                      <span className="text-xs text-muted-foreground uppercase font-bold">Limit</span>
-                                      <span className="text-xs font-medium">{data.used} / {data.max} {data.unit}</span>
-                                    </div>
-                                  </div>
-                                </div>
+                              <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 shadow-xl">
+                                <span className="font-bold">{payload[0].payload.name}:</span> {payload[0].payload.displayValue}
                               </div>
                             );
                           }
                           return null;
                         }}
                       />
-                      <defs>
-                        {chartData.map((entry, index) => (
-                          <linearGradient key={`gradient-${index}`} id={`gradient-${index}`} x1="0" y1="0" x2="1" y2="0">
-                            <stop offset="0%" stopColor={entry.fill} stopOpacity={0.6} />
-                            <stop offset="100%" stopColor={entry.fill} stopOpacity={1} />
-                          </linearGradient>
-                        ))}
-                      </defs>
-                      <Bar dataKey="percentage" radius={[0, 6, 6, 0]} barSize={16} background={{ fill: 'hsl(var(--muted)/0.2)', radius: [0, 6, 6, 0] }}>
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={`url(#gradient-${index})`} />
+                      <Bar dataKey="value" radius={[12, 12, 12, 12]}>
+                        {resourceData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
                       </Bar>
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                  )}
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Agents & Insights Section */}
-          <div className="space-y-4">
-             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold tracking-tight">Active Agents & Insights</h2>
-             </div>
-             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {agents.map((agent) => (
-                    <Card
-                      key={agent.name}
-                      className={cn(
-                        "border-none transition-all duration-300 relative overflow-hidden group",
-                        agent.enabled
-                          ? "bg-card/60 hover:bg-primary/5 cursor-pointer hover:-translate-y-1 hover:shadow-lg ring-1 ring-primary/10"
-                          : "bg-muted/20 opacity-60 grayscale cursor-not-allowed"
-                      )}
-                      onClick={() => agent.enabled && navigate(agent.path)}
-                    >
-                      <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                        <div className="relative">
-                          <div className={cn(
-                            "h-16 w-16 rounded-2xl flex items-center justify-center transition-transform duration-500 shadow-sm",
-                            agent.enabled ? "bg-gradient-to-br from-primary/20 to-primary/5 text-primary group-hover:scale-110" : "bg-muted text-muted-foreground"
-                          )}>
-                            <agent.icon className="h-8 w-8" />
-                          </div>
-                          {agent.enabled && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-background"></span>
-                            </span>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{agent.name}</h3>
-                          <Badge variant={agent.enabled ? "default" : "outline"} className="text-[10px] uppercase shadow-none">
-                            {agent.role}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.5em]">
-                          {agent.description}
-                        </p>
-                        {agent.enabled && (
-                          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                
-                {/* Insights Panel */}
-                <div className="xl:col-span-1">
-                   <Card className="border-none bg-card/40 backdrop-blur-md shadow-sm h-full">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-bold flex items-center gap-2">
-                        <FontAwesomeIcon icon={faHistory} className="h-4 w-4 text-primary" />
-                        Insights & Updates
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">System Metrics</h4>
-                        {[
-                          { label: "Token Efficiency", value: "98.2%", icon: faCheckCircle, color: "text-emerald-500" },
-                          { label: "Agent Uptime", value: "99.98%", icon: faCheckCircle, color: "text-emerald-500" },
-                          { label: "Memory Usage", value: "Locked", icon: faDatabase, color: "text-blue-500" },
-                        ].map((m, i) => (
-                          <div key={i} className="flex items-center justify-between group cursor-default">
-                            <div className="flex items-center gap-3">
-                              <FontAwesomeIcon icon={m.icon} className={cn("h-3 w-3", m.color)} />
-                              <span className="text-sm font-semibold">{m.label}</span>
-                            </div>
-                            <span className="text-sm font-bold opacity-70">{m.value}</span>
-                          </div>
-                        ))}
-                      </div>
+          {/* Secondary Grid */}
+          <div className={cn("grid gap-8", activeView === 'railvision' ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
+            
+            {activeView === 'railvision' ? (
+              /* RailVision: Strategic Partners Detailed Grid */
+              <div className="grid grid-cols-1 gap-6">
+                 <div className="flex items-center justify-between">
+                   <h3 className="text-xl font-bold">Strategic Partners & Funding</h3>
+                   <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                      {partners.length} Active
+                   </Badge>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   {partners.map((partner, idx) => (
+                      <Card key={partner.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
+                        <CardHeader className="p-6 pb-2 flex flex-row items-start justify-between gap-4">
+                           <div className="flex items-center gap-4">
+                             <div className={cn(
+                               "h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-lg",
+                               idx % 2 === 0 ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                             )}>
+                               {partner.partner_name.substring(0, 2).toUpperCase()}
+                             </div>
+                             <div>
+                               <CardTitle className="text-lg font-bold">{partner.partner_name}</CardTitle>
+                               <p className="text-sm text-muted-foreground">{partner.partnership_type}</p>
+                             </div>
+                           </div>
+                           <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 font-bold whitespace-nowrap">
+                             ${(Number(partner.funding_amount_usd) / 1000000).toFixed(1)}M
+                           </Badge>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                           <div className="space-y-2">
+                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Funding Details</p>
+                             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                               {partner.funding_notes}
+                             </p>
+                           </div>
+                           
+                           <div className="grid grid-cols-2 gap-4 pt-2">
+                             <div>
+                               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Region</p>
+                               <div className="flex items-center gap-2 text-sm font-medium">
+                                 <FontAwesomeIcon icon={faBuilding} className="text-slate-400 h-3 w-3" />
+                                 {partner.geography.regions || "Global"}
+                               </div>
+                             </div>
+                             <div>
+                               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Coverage</p>
+                               <div className="flex items-center gap-2 text-sm font-medium">
+                                  <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                                  {partner.geography.num_countries} Countries
+                               </div>
+                             </div>
+                           </div>
 
-                      <div className="pt-2">
-                        <Card className="bg-primary/5 border-none">
-                          <CardContent className="p-4 flex items-center justify-between">
-                            <div>
-                              <p className="text-[10px] font-black text-primary uppercase">Satisfaction</p>
-                              <div className="flex items-center gap-1 mt-1">
-                                {[1, 2, 3, 4, 5].map(s => (
-                                  <FontAwesomeIcon
-                                    key={s}
-                                    icon={faStar}
-                                    className={cn(
-                                      "h-3 w-3",
-                                      data.stats.avg_satisfaction && s <= Math.round(data.stats.avg_satisfaction)
-                                        ? "text-primary"
-                                        : "text-muted"
-                                    )}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-xl font-black text-primary">
-                                {data.stats.avg_satisfaction ? data.stats.avg_satisfaction.toFixed(1) : "---"}
-                              </p>
-                              <p className="text-[8px] font-bold text-muted-foreground uppercase">Average</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-             </div>
-          </div>
-
-          {/* Activity Section */}
-          <div className="pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold tracking-tight">Recent Activity</h2>
-              <Button variant="link" className="text-muted-foreground hover:text-primary">View History</Button>
-            </div>
-            <Card className="border-none bg-card/40 backdrop-blur-md overflow-hidden shadow-sm">
-              <CardContent className="p-0">
-                <div className="divide-y divide-border/30">
-                  {data.recent_activity.slice(0, 6).map((activity) => (
-                    <div key={activity.id} className="p-4 hover:bg-primary/5 transition-all flex items-center justify-between group cursor-default">
+                           {partner.geography.notes && (
+                             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                               <p className="text-xs text-slate-400 italic mt-2">
+                                 "{partner.geography.notes}"
+                               </p>
+                             </div>
+                           )}
+                        </CardContent>
+                      </Card>
+                   ))}
+                 </div>
+              </div>
+            ) : (
+              /* Platform: Active Agents (Full List) */
+              <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+                <CardHeader className="p-6 pb-2">
+                  <CardTitle className="text-lg font-bold">Active Agents</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  {[
+                    { name: "Michael", role: "CSO", status: "Active" },
+                    { name: "Sarah", role: "CTO", status: "Idle" },
+                    { name: "Caroline", role: "CFO", status: "Idle" },
+                    { name: "Emily", role: "CMO", status: "Idle" },
+                    { name: "James", role: "COO", status: "Idle" }
+                  ].map((agent, i) => (
+                    <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center border-2 border-background shadow-sm transition-transform group-hover:scale-105",
-                          activity.type === 'project' ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400" : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        )}>
-                          <FontAwesomeIcon icon={activity.type === 'project' ? faProjectDiagram : faComments} className="h-4 w-4" />
+                        <div className="h-10 w-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                          <FontAwesomeIcon icon={faUserTie} className="h-4 w-4" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm group-hover:text-primary transition-colors">{activity.name}</h4>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="secondary" className="text-[10px] uppercase font-bold h-5 px-1.5 bg-muted/50">
-                              {activity.type}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <FontAwesomeIcon icon={faClock} className="h-3 w-3 opacity-70" />
-                              {formatDate(activity.updated_at)}
-                            </span>
-                          </div>
+                          <p className="font-bold text-sm text-foreground">{agent.name}</p>
+                          <p className="text-xs text-muted-foreground">{agent.role}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "h-2 w-2 rounded-full",
-                          activity.status === 'active' ? "bg-emerald-500" : "bg-muted-foreground/30"
-                        )} />
-                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-background shadow-sm">
-                          <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3 w-3" />
-                        </Button>
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-2 w-2 rounded-full", agent.status === 'Active' ? "bg-green-500" : "bg-amber-500")} />
+                        <span className="text-xs font-medium text-muted-foreground">{agent.status}</span>
                       </div>
                     </div>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="space-y-6">
-          {/* Usage Breakdown */}
-            <Card className="border-none bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-500 overflow-hidden relative group">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <FontAwesomeIcon icon={faChartPie} className="h-24 w-24 text-primary" />
-              </div>
-              <CardHeader className="relative z-10">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <span className="p-2 rounded-lg bg-primary/10 text-primary">
-                    <FontAwesomeIcon icon={faChartPie} className="h-4 w-4" />
-                  </span>
-                  Usage Breakdown
-                </CardTitle>
-                <CardDescription className="font-medium">Distribution of system resources</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 flex flex-col items-center justify-center min-h-[300px] relative z-10">
-                 <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={90}
-                      paddingAngle={4}
-                      dataKey="value"
-                      stroke="none"
-                      cornerRadius={6}
-                    >
-                      {pieChartData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.fill} 
-                          className="hover:opacity-80 transition-opacity cursor-pointer filter drop-shadow-sm" 
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className="rounded-xl border border-border/50 bg-background/90 backdrop-blur-xl p-4 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200">
-                              <div className="flex flex-col gap-2">
-                                <span className="text-sm font-bold flex items-center gap-2">
-                                  <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: data.fill }}></span>
-                                  {data.name}
-                                </span>
-                                <div className="flex items-baseline gap-1">
-                                  <span className="text-2xl font-black tracking-tight">{data.value.toFixed(1)}%</span>
-                                  <span className="text-xs text-muted-foreground font-bold uppercase">Used</span>
-                                </div>
-                              </div>
+        {/* Right Column (Sidebar) */}
+        <div className="space-y-8">
+          
+          {activeView === 'railvision' ? (
+             /* RailVision Sidebar: Performance Studies & Accounts */
+             <>
+               <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+                  <CardHeader className="p-6 pb-2">
+                    <CardTitle className="text-lg font-bold">Key Accounts</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    {accounts.map((account) => (
+                      <div key={account.id} className="space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
+                         <div className="flex justify-between items-center">
+                            <span className="font-bold text-sm">{account.account_name}</span>
+                            <Badge variant="outline" className="text-[10px] font-normal">{account.segment}</Badge>
+                         </div>
+                         <div className="flex items-center gap-3">
+                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                               <div 
+                                 className="h-full bg-emerald-500 rounded-full" 
+                                 style={{ width: `${Math.min(((Number(account.pipelines[0]?.arr_potential_cad || 0) / 10000000) * 100), 100)}%` }}
+                               />
                             </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                {/* Center text for donut chart */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-12">
-                   <span className="text-3xl font-black tracking-tighter text-foreground">
-                     {Math.round(pieChartData.reduce((acc, curr) => acc + curr.value, 0) / (pieChartData.length || 1))}%
-                   </span>
-                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Avg Load</span>
-                </div>
+                            <span className="text-xs font-bold text-emerald-600">
+                              ${(Number(account.pipelines[0]?.arr_potential_cad || 0) / 1000000).toFixed(1)}M
+                            </span>
+                         </div>
+                         <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Pipeline Status</span>
+                            <span className="font-medium text-slate-700 dark:text-slate-300">{account.pipelines[0]?.status}</span>
+                         </div>
+                      </div>
+                    ))}
+                  </CardContent>
+               </Card>
 
-                <div className="flex flex-wrap justify-center gap-4 mt-6">
-                  {pieChartData.slice(0, 3).map((entry, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.fill }} />
-                      <span className="text-xs font-medium text-muted-foreground">{entry.name}</span>
+               <div className="space-y-6">
+                 <h3 className="text-xl font-bold px-1">Performance Impact</h3>
+                 <div className="space-y-4">
+                    {performanceStudies.map((study, idx) => (
+                       <Card key={study.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
+                         <div className={cn("h-2 w-full", idx % 2 === 0 ? "bg-emerald-500" : "bg-indigo-500")} />
+                         <CardContent className="p-6">
+                           <div className="flex justify-between items-start mb-4">
+                              <div className={cn("p-2 rounded-xl", idx % 2 === 0 ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
+                                <FontAwesomeIcon icon={faChartLine} className="h-5 w-5" />
+                              </div>
+                              <Badge variant="outline" className="border-0 bg-slate-100 text-slate-600 font-bold">
+                                 Verified
+                              </Badge>
+                           </div>
+                           <h3 className="text-3xl font-bold mb-1 text-foreground">{study.improvement_percent}%</h3>
+                           <p className="font-bold text-sm text-muted-foreground mb-4">{study.metric_type}</p>
+                           <p className="text-xs text-slate-500 leading-relaxed">
+                              {study.methodology_notes}
+                           </p>
+                         </CardContent>
+                       </Card>
+                    ))}
+                 </div>
+               </div>
+             </>
+          ) : (
+            /* Platform Sidebar: System Load & Activity */
+            <>
+              <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+                <CardHeader className="p-6 pb-0">
+                  <CardTitle className="text-lg font-bold">System Load</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 flex flex-col items-center justify-center relative">
+                  <div className="h-[250px] w-full relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                          stroke="none"
+                          cornerRadius={10}
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      <span className="text-3xl font-extrabold text-foreground">
+                        {Math.round(pieData.reduce((acc, c) => acc + c.value, 0) / (pieData.length || 1))}%
+                      </span>
+                      <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Avg</span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                  
+                  <div className="w-full space-y-3 mt-4">
+                    {pieData.slice(0, 3).map((item, i) => (
+                      <div key={i} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.fill }} />
+                          <span className="font-medium text-muted-foreground">{item.name}</span>
+                        </div>
+                        <span className="font-bold text-foreground">{item.value.toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+                <CardHeader className="p-6 pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-lg font-bold">Recent Updates</CardTitle>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full p-0">
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="relative">
+                    <div className="absolute left-8 top-4 bottom-4 w-0.5 bg-slate-100 dark:bg-slate-800"></div>
+                    <div className="space-y-6 p-6">
+                      {data.recent_activity.slice(0, 4).map((activity, idx) => (
+                        <div key={activity.id} className="relative pl-8 group">
+                          <div className={cn(
+                            "absolute left-[1px] top-1.5 h-3 w-3 rounded-full border-2 border-white dark:border-card z-10 transition-all group-hover:scale-125",
+                            activity.type === 'project' ? "bg-indigo-500" : "bg-emerald-500"
+                          )}></div>
+                          <div>
+                            <p className="text-sm font-bold text-foreground leading-tight">{activity.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(activity.updated_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
         </div>
       </div>
     </div>

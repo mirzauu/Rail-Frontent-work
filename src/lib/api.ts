@@ -67,7 +67,7 @@ export class ApiClient {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
-  cd
+  
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
   }
@@ -283,5 +283,39 @@ export type DashboardResponse = {
     updated_at: string;
     status: string;
   }>;
+  commercial?: {
+    accounts: Array<{
+      id: string;
+      account_name: string;
+      segment: string;
+      is_strategic_logo: boolean;
+      pipelines: Array<{
+        arr_potential_cad: string | null;
+        status: string;
+        snapshot_date: string;
+      }>;
+    }>;
+    performance_studies: Array<{
+      id: string;
+      customer_name: string | null;
+      metric_type: string;
+      improvement_percent: string;
+      measurement_period: string | null;
+      methodology_notes: string;
+    }>;
+    partners: Array<{
+      id: string;
+      partner_name: string;
+      partnership_type: string;
+      funding_amount_usd: string;
+      funding_notes: string;
+      geography: {
+        num_countries: number;
+        regions: string | null;
+        notes: string;
+      };
+    }>;
+    last_updated: string;
+  };
   metadata: Record<string, unknown>;
 };

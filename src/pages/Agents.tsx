@@ -1319,7 +1319,7 @@ export default function Agents() {
                 )}
                 <input
                   type="text"
-                  placeholder="Get a detailed report"
+                  placeholder="What you thinking"
                   className="w-full bg-transparent text-foreground placeholder-muted-foreground text-sm outline-none"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}

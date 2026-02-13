@@ -34,7 +34,7 @@ import { api } from "@/lib/api";
 
 const agents = [
   { id: "cso", name: "Michael", role: "CSO", letter: "M" },
-  { id: "cfo", name: "David", role: "CFO", letter: "D" },
+  { id: "cfo", name: "Caroline", role: "CFO", letter: "D" },
   { id: "coo", name: "John", role: "COO", letter: "J" },
   { id: "cmo", name: "Sarah", role: "CMO", letter: "S" },
   { id: "cto", name: "Emily", role: "CTO", letter: "E" },
