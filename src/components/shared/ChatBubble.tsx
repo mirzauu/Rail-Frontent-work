@@ -3,7 +3,14 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 export interface ToolCall {
@@ -303,6 +310,24 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
 
 export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, attachments }: ChatBubbleProps) => {
   const isUser = role === "user";
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleThumbsUp = () => {
+    // Placeholder for thumbs up action
+    console.log("Thumbs up clicked");
+  };
+
+  const handleDownload = (format: 'pdf' | 'docx') => {
+    // Placeholder for download action
+    console.log(`Downloading as ${format}`);
+  };
 
   const normalizeTables = (text: string): string => {
     // 1. Convert literal \n to real newlines first
@@ -371,7 +396,7 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
   }, [content, tool_calls]);
 
   return (
-    <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden group", isUser ? "justify-end" : "justify-start")}>
       <div className={cn("flex flex-col min-w-0 overflow-hidden", isUser ? "items-end max-w-[85%]" : "items-start max-w-full")}>
         <div className="flex items-center gap-2 mb-1 px-1">
           <span className="text-xs font-medium text-muted-foreground">
@@ -527,6 +552,46 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
             {showTyping ? (
               <TypingDots />
             ) : null}
+
+            {!isUser && !isLoading && (
+              <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuItem onClick={() => handleDownload('pdf')} className="text-xs">
+                      <FileText className="mr-2 h-3.5 w-3.5" />
+                      Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDownload('docx')} className="text-xs">
+                      <FileText className="mr-2 h-3.5 w-3.5" />
+                      Download Word
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                  onClick={handleCopy}
+                >
+                  {isCopied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                  onClick={handleThumbsUp}
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

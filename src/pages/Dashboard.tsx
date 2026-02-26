@@ -40,19 +40,19 @@ import { api, DashboardResponse } from "@/lib/api";
 
 // --- Components ---
 
-const StatCard = ({ 
-  label, 
-  value, 
-  icon, 
-  trend, 
-  trendValue, 
-  color, 
-  bgColor 
-}: { 
-  label: string; 
-  value: string | number; 
-  icon: any; 
-  trend?: 'up' | 'down' | 'neutral'; 
+const StatCard = ({
+  label,
+  value,
+  icon,
+  trend,
+  trendValue,
+  color,
+  bgColor
+}: {
+  label: string;
+  value: string | number;
+  icon: any;
+  trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
   color: string;
   bgColor: string;
@@ -71,9 +71,9 @@ const StatCard = ({
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className={cn(
               "rounded-full px-2 py-0.5 text-[11px] font-bold border-0",
-              trend === 'up' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" : 
-              trend === 'down' ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400" :
-              "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
+              trend === 'up' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400" :
+                trend === 'down' ? "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400" :
+                  "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400"
             )}>
               <FontAwesomeIcon icon={trend === 'up' ? faArrowUp : faArrowDown} className="mr-1 h-2.5 w-2.5" />
               {trendValue}
@@ -150,7 +150,7 @@ export default function Dashboard() {
     const pipeline = a.pipelines[0];
     return acc + (pipeline && pipeline.arr_potential_cad ? Number(pipeline.arr_potential_cad) : 0);
   }, 0);
-  
+
   const avgImprovement = performanceStudies.reduce((acc, s) => acc + parseFloat(s.improvement_percent), 0);
   const avgImprovementCount = performanceStudies.length || 1;
   const avgImprovementValue = (avgImprovement / avgImprovementCount).toFixed(1);
@@ -197,7 +197,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] text-slate-900 dark:text-slate-100 font-sans p-6 md:p-8 lg:p-10 space-y-8">
-      
+
       {/* Top Navigation / Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
@@ -217,8 +217,8 @@ export default function Dashboard() {
             onClick={() => setActiveView('railvision')}
             className={cn(
               "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300",
-              activeView === 'railvision' 
-                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105" 
+              activeView === 'railvision'
+                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105"
                 : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
             )}
           >
@@ -228,15 +228,15 @@ export default function Dashboard() {
             onClick={() => setActiveView('platform')}
             className={cn(
               "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300",
-              activeView === 'platform' 
-                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105" 
+              activeView === 'platform'
+                ? "bg-orange-500 text-white shadow-md shadow-orange-100 transform scale-105"
                 : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
             )}
           >
             Platform
           </button>
         </div>
-        
+
         <div className="hidden lg:flex items-center gap-3">
           <Button variant="outline" className="rounded-full h-12 px-6 border-slate-200 dark:border-slate-800 bg-white dark:bg-card text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50">
             <Calendar className="mr-2 h-4 w-4" /> {new Date().toLocaleDateString()}
@@ -253,10 +253,10 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
-        
+
         {/* Left Column (2/3 width) */}
         <div className="xl:col-span-2 space-y-8">
-          
+
           {/* Main Chart Section */}
           <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
             <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
@@ -282,14 +282,14 @@ export default function Dashboard() {
                     }))}>
                       <defs>
                         <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid vertical={false} stroke="hsl(var(--muted))" strokeOpacity={0.2} strokeDasharray="4 4" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <Tooltip 
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                      <Tooltip
                         contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
                         itemStyle={{ color: '#10b981', fontWeight: 600 }}
                       />
@@ -298,10 +298,10 @@ export default function Dashboard() {
                   ) : (
                     <BarChart data={resourceData} barSize={40}>
                       <CartesianGrid vertical={false} stroke="hsl(var(--muted))" strokeOpacity={0.2} strokeDasharray="4 4" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                      <Tooltip 
-                        cursor={{fill: 'transparent'}}
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                      <Tooltip
+                        cursor={{ fill: 'transparent' }}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             return (
@@ -327,72 +327,72 @@ export default function Dashboard() {
 
           {/* Secondary Grid */}
           <div className={cn("grid gap-8", activeView === 'railvision' ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
-            
+
             {activeView === 'railvision' ? (
               /* RailVision: Strategic Partners Detailed Grid */
               <div className="grid grid-cols-1 gap-6">
-                 <div className="flex items-center justify-between">
-                   <h3 className="text-xl font-bold">Strategic Partners & Funding</h3>
-                   <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
-                      {partners.length} Active
-                   </Badge>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {partners.map((partner, idx) => (
-                      <Card key={partner.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
-                        <CardHeader className="p-6 pb-2 flex flex-row items-start justify-between gap-4">
-                           <div className="flex items-center gap-4">
-                             <div className={cn(
-                               "h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-lg",
-                               idx % 2 === 0 ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
-                             )}>
-                               {partner.partner_name.substring(0, 2).toUpperCase()}
-                             </div>
-                             <div>
-                               <CardTitle className="text-lg font-bold">{partner.partner_name}</CardTitle>
-                               <p className="text-sm text-muted-foreground">{partner.partnership_type}</p>
-                             </div>
-                           </div>
-                           <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 font-bold whitespace-nowrap">
-                             ${(Number(partner.funding_amount_usd) / 1000000).toFixed(1)}M
-                           </Badge>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                           <div className="space-y-2">
-                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Funding Details</p>
-                             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
-                               {partner.funding_notes}
-                             </p>
-                           </div>
-                           
-                           <div className="grid grid-cols-2 gap-4 pt-2">
-                             <div>
-                               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Region</p>
-                               <div className="flex items-center gap-2 text-sm font-medium">
-                                 <FontAwesomeIcon icon={faBuilding} className="text-slate-400 h-3 w-3" />
-                                 {partner.geography.regions || "Global"}
-                               </div>
-                             </div>
-                             <div>
-                               <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Coverage</p>
-                               <div className="flex items-center gap-2 text-sm font-medium">
-                                  <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-                                  {partner.geography.num_countries} Countries
-                               </div>
-                             </div>
-                           </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold">Strategic Partners & Funding</h3>
+                  <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                    {partners.length} Active
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {partners.map((partner, idx) => (
+                    <Card key={partner.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
+                      <CardHeader className="p-6 pb-2 flex flex-row items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "h-12 w-12 rounded-2xl flex items-center justify-center font-bold text-lg",
+                            idx % 2 === 0 ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                          )}>
+                            {partner.partner_name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg font-bold">{partner.partner_name}</CardTitle>
+                            <p className="text-sm text-muted-foreground">{partner.partnership_type}</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 font-bold whitespace-nowrap">
+                          ${(Number(partner.funding_amount_usd) / 1000000).toFixed(1)}M
+                        </Badge>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-4">
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Funding Details</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl">
+                            {partner.funding_notes}
+                          </p>
+                        </div>
 
-                           {partner.geography.notes && (
-                             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                               <p className="text-xs text-slate-400 italic mt-2">
-                                 "{partner.geography.notes}"
-                               </p>
-                             </div>
-                           )}
-                        </CardContent>
-                      </Card>
-                   ))}
-                 </div>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          <div>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Region</p>
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <FontAwesomeIcon icon={faBuilding} className="text-slate-400 h-3 w-3" />
+                              {partner.geography.regions || "Global"}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Coverage</p>
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
+                              {partner.geography.num_countries} Countries
+                            </div>
+                          </div>
+                        </div>
+
+                        {partner.geography.notes && (
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <p className="text-xs text-slate-400 italic mt-2">
+                              "{partner.geography.notes}"
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             ) : (
               /* Platform: Active Agents (Full List) */
@@ -403,10 +403,10 @@ export default function Dashboard() {
                 <CardContent className="p-6 space-y-4">
                   {[
                     { name: "Michael", role: "CSO", status: "Active" },
-                    { name: "Sarah", role: "CTO", status: "Idle" },
-                    { name: "Caroline", role: "CFO", status: "Idle" },
-                    { name: "Emily", role: "CMO", status: "Idle" },
-                    { name: "James", role: "COO", status: "Idle" }
+                    { name: "Raphael", role: "CFO", status: "Idle" },
+                    { name: "Mary", role: "COO", status: "Idle" },
+                    { name: "Gabriel", role: "CRO", status: "Idle" },
+                    { name: "Emily", role: "CTO", status: "Idle" }
                   ].map((agent, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -432,67 +432,67 @@ export default function Dashboard() {
 
         {/* Right Column (Sidebar) */}
         <div className="space-y-8">
-          
-          {activeView === 'railvision' ? (
-             /* RailVision Sidebar: Performance Studies & Accounts */
-             <>
-               <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
-                  <CardHeader className="p-6 pb-2">
-                    <CardTitle className="text-lg font-bold">Key Accounts</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-4">
-                    {accounts.map((account) => (
-                      <div key={account.id} className="space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
-                         <div className="flex justify-between items-center">
-                            <span className="font-bold text-sm">{account.account_name}</span>
-                            <Badge variant="outline" className="text-[10px] font-normal">{account.segment}</Badge>
-                         </div>
-                         <div className="flex items-center gap-3">
-                            <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                               <div 
-                                 className="h-full bg-emerald-500 rounded-full" 
-                                 style={{ width: `${Math.min(((Number(account.pipelines[0]?.arr_potential_cad || 0) / 10000000) * 100), 100)}%` }}
-                               />
-                            </div>
-                            <span className="text-xs font-bold text-emerald-600">
-                              ${(Number(account.pipelines[0]?.arr_potential_cad || 0) / 1000000).toFixed(1)}M
-                            </span>
-                         </div>
-                         <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>Pipeline Status</span>
-                            <span className="font-medium text-slate-700 dark:text-slate-300">{account.pipelines[0]?.status}</span>
-                         </div>
-                      </div>
-                    ))}
-                  </CardContent>
-               </Card>
 
-               <div className="space-y-6">
-                 <h3 className="text-xl font-bold px-1">Performance Impact</h3>
-                 <div className="space-y-4">
-                    {performanceStudies.map((study, idx) => (
-                       <Card key={study.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
-                         <div className={cn("h-2 w-full", idx % 2 === 0 ? "bg-emerald-500" : "bg-indigo-500")} />
-                         <CardContent className="p-6">
-                           <div className="flex justify-between items-start mb-4">
-                              <div className={cn("p-2 rounded-xl", idx % 2 === 0 ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
-                                <FontAwesomeIcon icon={faChartLine} className="h-5 w-5" />
-                              </div>
-                              <Badge variant="outline" className="border-0 bg-slate-100 text-slate-600 font-bold">
-                                 Verified
-                              </Badge>
-                           </div>
-                           <h3 className="text-3xl font-bold mb-1 text-foreground">{study.improvement_percent}%</h3>
-                           <p className="font-bold text-sm text-muted-foreground mb-4">{study.metric_type}</p>
-                           <p className="text-xs text-slate-500 leading-relaxed">
-                              {study.methodology_notes}
-                           </p>
-                         </CardContent>
-                       </Card>
-                    ))}
-                 </div>
-               </div>
-             </>
+          {activeView === 'railvision' ? (
+            /* RailVision Sidebar: Performance Studies & Accounts */
+            <>
+              <Card className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden">
+                <CardHeader className="p-6 pb-2">
+                  <CardTitle className="text-lg font-bold">Key Accounts</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  {accounts.map((account) => (
+                    <div key={account.id} className="space-y-3 pb-4 border-b border-slate-100 dark:border-slate-800 last:border-0 last:pb-0">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-sm">{account.account_name}</span>
+                        <Badge variant="outline" className="text-[10px] font-normal">{account.segment}</Badge>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full"
+                            style={{ width: `${Math.min(((Number(account.pipelines[0]?.arr_potential_cad || 0) / 10000000) * 100), 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-emerald-600">
+                          ${(Number(account.pipelines[0]?.arr_potential_cad || 0) / 1000000).toFixed(1)}M
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground">
+                        <span>Pipeline Status</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{account.pipelines[0]?.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold px-1">Performance Impact</h3>
+                <div className="space-y-4">
+                  {performanceStudies.map((study, idx) => (
+                    <Card key={study.id} className="border-none shadow-sm bg-white dark:bg-card rounded-[32px] overflow-hidden hover:shadow-md transition-shadow">
+                      <div className={cn("h-2 w-full", idx % 2 === 0 ? "bg-emerald-500" : "bg-indigo-500")} />
+                      <CardContent className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className={cn("p-2 rounded-xl", idx % 2 === 0 ? "bg-emerald-100 text-emerald-600" : "bg-indigo-100 text-indigo-600")}>
+                            <FontAwesomeIcon icon={faChartLine} className="h-5 w-5" />
+                          </div>
+                          <Badge variant="outline" className="border-0 bg-slate-100 text-slate-600 font-bold">
+                            Verified
+                          </Badge>
+                        </div>
+                        <h3 className="text-3xl font-bold mb-1 text-foreground">{study.improvement_percent}%</h3>
+                        <p className="font-bold text-sm text-muted-foreground mb-4">{study.metric_type}</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          {study.methodology_notes}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            </>
           ) : (
             /* Platform Sidebar: System Load & Activity */
             <>
@@ -529,7 +529,7 @@ export default function Dashboard() {
                       <span className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Avg</span>
                     </div>
                   </div>
-                  
+
                   <div className="w-full space-y-3 mt-4">
                     {pieData.slice(0, 3).map((item, i) => (
                       <div key={i} className="flex items-center justify-between text-sm">

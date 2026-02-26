@@ -78,7 +78,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   cfo: {
     id: "9b1d9d6f-1e3a-4aaf-9d8a-0f6a6a1c9b12",
-    name: "Elena ",
+    name: "Raphael",
     role: "CFO",
     icon: DollarSign,
     color: "bg-orange-500",
@@ -86,7 +86,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   coo: {
     id: "5c2e8f3a-7dbe-4f9b-b1a2-3a9e4d6f8c21",
-    name: "David ",
+    name: "Mary",
     role: "COO",
     icon: Settings,
     color: "bg-purple-500",
@@ -102,8 +102,8 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
   },
   cmo: {
     id: "8f3d2a1b-9c7e-4b5a-8d1f-2e3c4b5a6d7e",
-    name: "Sarah ",
-    role: "CMO",
+    name: "Gabriel",
+    role: "CRO",
     icon: TrendingUp,
     color: "bg-blue-500",
     textColor: "text-blue-500"
@@ -657,9 +657,9 @@ export default function Agents() {
           if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
           // Use local checks for PPT/PDF existence instead of stale state
           const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) || 
-                         (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-                         
+          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+            (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+
           if (!hasPPT && !hasPDF) {
             setViewMode('doc');
           }
@@ -1064,12 +1064,12 @@ export default function Agents() {
                         })));
                         setActiveDocIndex(doclist.length - 1);
                         if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-                        
+
                         // If no PPT/PDF, switch view to DOC
                         const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
                         const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
                           (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-                          
+
                         if (!hasPPT && !hasPDF) {
                           setViewMode('doc');
                         }
@@ -1083,18 +1083,18 @@ export default function Agents() {
                       setActiveDocIndex(0);
                     }
 
-                      // Automatically close sidebar if no documents are present in this chat
-                      const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                      const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                        (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-                      const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
-  
-                      if (!hasPPT && !hasPDF && !hasDoc) {
-                        setIsRightSidebarOpen(false);
-                      } else {
-                        // Ensure it's open if we have content
-                        setIsRightSidebarOpen(true);
-                      }
+                    // Automatically close sidebar if no documents are present in this chat
+                    const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                    const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                      (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                    const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
+
+                    if (!hasPPT && !hasPDF && !hasDoc) {
+                      setIsRightSidebarOpen(false);
+                    } else {
+                      // Ensure it's open if we have content
+                      setIsRightSidebarOpen(true);
+                    }
                     const arr = Array.isArray(d?.messages) ? d.messages : [];
                     const conv = arr.map((m: HistoryMessage, idx: number) => ({
                       id: Date.now() + idx,

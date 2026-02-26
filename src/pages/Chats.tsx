@@ -10,11 +10,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const chats = [
-  { id: 1, agent: "CSO", name: "CSO Agent", preview: "I've completed the market analysis for Q4...", time: "2m ago", unread: true },
-  { id: 2, agent: "CFO", name: "CFO Agent", preview: "Updated cash flow projections are ready.", time: "15m ago", unread: true },
-  { id: 3, agent: "COO", name: "COO Agent", preview: "Process optimization review is complete.", time: "1h ago", unread: false },
-  { id: 4, agent: "CMO", name: "CMO Agent", preview: "Campaign metrics report is now available.", time: "3h ago", unread: false },
-  { id: 5, agent: "CTO", name: "CTO Agent", preview: "Technical roadmap has been updated.", time: "1d ago", unread: false },
+  { id: 1, agent: "CSO", name: "Michael", preview: "I've completed the market analysis for Q4...", time: "2m ago", unread: true },
+  { id: 2, agent: "CFO", name: "Raphael", preview: "Updated cash flow projections are ready.", time: "15m ago", unread: true },
+  { id: 3, agent: "COO", name: "Mary", preview: "Process optimization review is complete.", time: "1h ago", unread: false },
+  { id: 4, agent: "CRO", name: "Gabriel", preview: "Revenue growth metrics report is now available.", time: "3h ago", unread: false },
+  { id: 5, agent: "CTO", name: "Emily", preview: "Technical roadmap has been updated.", time: "1d ago", unread: false },
 ];
 
 interface Message {
@@ -41,12 +41,12 @@ const mockMessages: Record<number, Message[]> = {
     }
   ],
   2: [
-      {
-          id: 1,
-          role: "assistant",
-          content: "Updated cash flow projections are ready. Would you like me to summarize the key variances?",
-          timestamp: "10:15 AM"
-      }
+    {
+      id: 1,
+      role: "assistant",
+      content: "Updated cash flow projections are ready. Would you like me to summarize the key variances?",
+      timestamp: "10:15 AM"
+    }
   ]
 };
 
@@ -79,10 +79,10 @@ export default function Chats() {
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaRef.current) {
-        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (scrollContainer) {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-        }
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
     }
   }, [messages, isStreaming]);
 
@@ -104,31 +104,31 @@ export default function Chats() {
 
     // Simulate streaming response
     const responseContent = "This is a **simulated streaming response** to show how markdown renders in *real-time*.\n\nHere's a code block:\n```javascript\nconsole.log('Hello World');\n```\n\nAnd a list:\n1. Item one\n2. Item two\n3. Item three";
-    
+
     const assistantMessageId = Date.now() + 1;
     let currentContent = "";
-    
+
     // Add empty assistant message first
     setMessages(prev => [...prev, {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }]);
 
     const words = responseContent.split(" ");
-    
+
     for (let i = 0; i < words.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
-        currentContent += (i > 0 ? " " : "") + words[i];
-        
-        setMessages(prev => prev.map(msg => 
-            msg.id === assistantMessageId 
-                ? { ...msg, content: currentContent } 
-                : msg
-        ));
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate network delay
+      currentContent += (i > 0 ? " " : "") + words[i];
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
+          ? { ...msg, content: currentContent }
+          : msg
+      ));
     }
-    
+
     setIsStreaming(false);
   };
 
@@ -199,27 +199,27 @@ export default function Chats() {
                   <p className="text-xs text-muted-foreground">Online</p>
                 </div>
               </CardHeader>
-              
+
               <div className="flex-1 overflow-hidden relative">
-                  <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
-                    <div className="space-y-4 pb-4">
-                        {messages.map((msg, index) => {
-                          const isLast = index === messages.length - 1;
-                          const showTyping = isStreaming && isLast && msg.role === "assistant" && (msg.content || "").trim().length === 0;
-                          return (
-                            <ChatBubble
-                              key={msg.id}
-                              content={msg.content}
-                              role={msg.role}
-                              timestamp={msg.timestamp}
-                              name={msg.role === "assistant" ? selectedChat?.name : "You"}
-                              isLoading={showTyping}
-                              attachments={msg.attachments}
-                            />
-                          );
-                        })}
-                    </div>
-                  </ScrollArea>
+                <ScrollArea className="h-full p-4" ref={scrollAreaRef}>
+                  <div className="space-y-4 pb-4">
+                    {messages.map((msg, index) => {
+                      const isLast = index === messages.length - 1;
+                      const showTyping = isStreaming && isLast && msg.role === "assistant" && (msg.content || "").trim().length === 0;
+                      return (
+                        <ChatBubble
+                          key={msg.id}
+                          content={msg.content}
+                          role={msg.role}
+                          timestamp={msg.timestamp}
+                          name={msg.role === "assistant" ? selectedChat?.name : "You"}
+                          isLoading={showTyping}
+                          attachments={msg.attachments}
+                        />
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               </div>
 
               <div className="p-4 border-t border-border mt-auto">
@@ -228,7 +228,7 @@ export default function Chats() {
                     {attachments.map((file, index) => (
                       <div key={index} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-xs group">
                         <span className="truncate max-w-[150px]">{file.name}</span>
-                        <button 
+                        <button
                           onClick={() => removeAttachment(index)}
                           className="text-muted-foreground hover:text-foreground"
                         >
@@ -240,12 +240,12 @@ export default function Chats() {
                 )}
                 <div className="flex gap-2">
                   <input
-                     type="file"
-                     multiple
-                     className="hidden"
-                     ref={fileInputRef}
-                     onChange={handleFileSelect}
-                   />
+                    type="file"
+                    multiple
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                  />
                   <Button
                     variant="outline"
                     size="icon"
@@ -253,15 +253,15 @@ export default function Chats() {
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
-                  <Input 
-                    placeholder="Type your message..." 
+                  <Input
+                    placeholder="Type your message..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage();
-                        }
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
                     }}
                     className="flex-1"
                   />

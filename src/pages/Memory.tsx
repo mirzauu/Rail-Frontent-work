@@ -19,12 +19,12 @@ import { Search, Filter, Network, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const memories = [
-  { id: 1, title: "APAC Expansion Decision", summary: "Strategic decision to expand operations into APAC market with Japan as primary entry point", agent: "CSO", type: "decision", confidence: 95, source: "chat", created: "2 hours ago" },
-  { id: 2, title: "Q4 Budget Allocation", summary: "Allocated 40% of Q4 budget to R&D initiatives focused on AI development", agent: "CFO", type: "decision", confidence: 88, source: "doc", created: "5 hours ago" },
-  { id: 3, title: "Supply Chain Risk Alert", summary: "Identified potential supply chain disruption in Southeast Asian suppliers", agent: "COO", type: "risk", confidence: 72, source: "integration", created: "1 day ago" },
-  { id: 4, title: "Marketing Campaign Results", summary: "Q3 campaign achieved 34% above target with 2.3M impressions", agent: "CMO", type: "insight", confidence: 91, source: "chat", created: "2 days ago" },
-  { id: 5, title: "Technical Debt Assessment", summary: "Current technical debt estimated at 15% of development capacity", agent: "CTO", type: "task", confidence: 85, source: "doc", created: "3 days ago" },
-  { id: 6, title: "Competitor Analysis Update", summary: "Main competitor launched new product line targeting enterprise segment", agent: "CSO", type: "insight", confidence: 78, source: "integration", created: "4 days ago" },
+  { id: 1, title: "APAC Expansion Decision", summary: "Strategic decision to expand operations into APAC market with Japan as primary entry point", agent: "Michael", type: "decision", confidence: 95, source: "chat", created: "2 hours ago" },
+  { id: 2, title: "Q4 Budget Allocation", summary: "Allocated 40% of Q4 budget to R&D initiatives focused on AI development", agent: "Raphael", type: "decision", confidence: 88, source: "doc", created: "5 hours ago" },
+  { id: 3, title: "Supply Chain Risk Alert", summary: "Identified potential supply chain disruption in Southeast Asian suppliers", agent: "Mary", type: "risk", confidence: 72, source: "integration", created: "1 day ago" },
+  { id: 4, title: "Revenue Growth Analysis", summary: "Q3 revenue achieved 34% above target with strong enterprise adoption", agent: "Gabriel", type: "insight", confidence: 91, source: "chat", created: "2 days ago" },
+  { id: 5, title: "Technical Debt Assessment", summary: "Current technical debt estimated at 15% of development capacity", agent: "Emily", type: "task", confidence: 85, source: "doc", created: "3 days ago" },
+  { id: 6, title: "Competitor Analysis Update", summary: "Main competitor launched new product line targeting enterprise segment", agent: "Michael", type: "insight", confidence: 78, source: "integration", created: "4 days ago" },
 ];
 
 const globalMemories = [
@@ -93,11 +93,11 @@ export default function Memory() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Agents</SelectItem>
-                      <SelectItem value="CSO">CSO Agent</SelectItem>
-                      <SelectItem value="CFO">CFO Agent</SelectItem>
-                      <SelectItem value="COO">COO Agent</SelectItem>
-                      <SelectItem value="CMO">CMO Agent</SelectItem>
-                      <SelectItem value="CTO">CTO Agent</SelectItem>
+                      <SelectItem value="Michael">Michael</SelectItem>
+                      <SelectItem value="Raphael">Raphael</SelectItem>
+                      <SelectItem value="Mary">Mary</SelectItem>
+                      <SelectItem value="Gabriel">Gabriel</SelectItem>
+                      <SelectItem value="Emily">Emily</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={typeFilter} onValueChange={setTypeFilter}>
