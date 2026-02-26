@@ -2,6 +2,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import { downloadPDF, downloadDOCX } from "@/lib/downloadMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check } from "lucide-react";
 import {
@@ -325,8 +326,13 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
   };
 
   const handleDownload = (format: 'pdf' | 'docx') => {
-    // Placeholder for download action
-    console.log(`Downloading as ${format}`);
+    if (!content) return;
+    const filename = `message_${new Date().toISOString().slice(0, 10)}`;
+    if (format === 'pdf') {
+      downloadPDF(content, filename);
+    } else {
+      downloadDOCX(content, filename);
+    }
   };
 
   const normalizeTables = (text: string): string => {

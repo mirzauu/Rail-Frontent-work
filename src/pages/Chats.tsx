@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 const chats = [
   { id: 1, agent: "CSO", name: "Michael", preview: "I've completed the market analysis for Q4...", time: "2m ago", unread: true },
   { id: 2, agent: "CFO", name: "Raphael", preview: "Updated cash flow projections are ready.", time: "15m ago", unread: true },
-  { id: 3, agent: "COO", name: "Mary", preview: "Process optimization review is complete.", time: "1h ago", unread: false },
+  { id: 3, agent: "CCO", name: "Mary", preview: "Process optimization review is complete.", time: "1h ago", unread: false },
   { id: 4, agent: "CRO", name: "Gabriel", preview: "Revenue growth metrics report is now available.", time: "3h ago", unread: false },
   { id: 5, agent: "CTO", name: "Emily", preview: "Technical roadmap has been updated.", time: "1d ago", unread: false },
 ];

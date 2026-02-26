@@ -84,10 +84,10 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
     color: "bg-orange-500",
     textColor: "text-orange-500"
   },
-  coo: {
+  cco: {
     id: "5c2e8f3a-7dbe-4f9b-b1a2-3a9e4d6f8c21",
     name: "Mary",
-    role: "COO",
+    role: "CCO",
     icon: Settings,
     color: "bg-purple-500",
     textColor: "text-purple-500"
@@ -100,7 +100,7 @@ const aiAgents: Record<string, { id: string; name: string; role: string; icon: E
     color: "bg-pink-500",
     textColor: "text-pink-500"
   },
-  cmo: {
+  cro: {
     id: "8f3d2a1b-9c7e-4b5a-8d1f-2e3c4b5a6d7e",
     name: "Gabriel",
     role: "CRO",
@@ -200,12 +200,12 @@ const agentConversations: Record<string, Message[]> = {
       ]
     },
   ],
-  coo: [
+  cco: [
     { id: 1, type: "user", content: "How can we improve our operational efficiency?", time: "11:00" },
     {
       id: 2,
       type: "agent",
-      agent: "coo",
+      agent: "cco",
       content: "From an operational standpoint, I've identified three key opportunities: 1) Automating our order processing could reduce fulfillment time by 35%, 2) Consolidating our warehouse locations would save $200K annually, 3) Implementing predictive maintenance would reduce equipment downtime by 50%. I recommend starting with order automation.",
       time: "11:08",
       reasoning: [
@@ -217,7 +217,7 @@ const agentConversations: Record<string, Message[]> = {
     {
       id: 4,
       type: "agent",
-      agent: "coo",
+      agent: "cco",
       content: "The automation project would take 12 weeks: Phase 1 (weeks 1-4) - System integration and testing, Phase 2 (weeks 5-8) - Pilot with 20% of orders, Phase 3 (weeks 9-12) - Full rollout and optimization. We can run this parallel to current operations with minimal disruption.",
       time: "11:20",
       reasoning: [
@@ -226,12 +226,12 @@ const agentConversations: Record<string, Message[]> = {
       ]
     },
   ],
-  cmo: [
+  cro: [
     { id: 1, type: "user", content: "What marketing strategies should we focus on for Q2?", time: "14:00" },
     {
       id: 2,
       type: "agent",
-      agent: "cmo",
+      agent: "cro",
       content: "Based on our Q1 performance data, I recommend three priority strategies: 1) Double down on LinkedIn content - it's driving 45% of our qualified leads, 2) Launch a customer referral program - our NPS of 72 indicates strong advocacy potential, 3) Invest in video marketing - video content has 3x engagement vs. static posts. Budget allocation: Content (40%), Referral program (30%), Video production (30%).",
       time: "14:10",
       reasoning: [
@@ -243,7 +243,7 @@ const agentConversations: Record<string, Message[]> = {
     {
       id: 4,
       type: "agent",
-      agent: "cmo",
+      agent: "cro",
       content: "Key metrics by initiative: LinkedIn - target 500 MQLs/month (currently 320), Referral program - aim for 15% of new customers from referrals, Video content - 10K views per video average with 8% CTR. I'll set up a weekly dashboard tracking pipeline impact, cost per lead, and conversion rates at each funnel stage.",
       time: "14:25",
       reasoning: [
@@ -283,8 +283,8 @@ const agentConversations: Record<string, Message[]> = {
 const agentEmptyPrompts: Record<string, string> = {
   cso: "How can I help you today?",
   cfo: "How can I help you today?",
-  coo: "How can I help you today?",
-  cmo: "How can I help you today?",
+  cco: "How can I help you today?",
+  cro: "How can I help you today?",
   cto: "How can I help you today?",
   chro: "How can I help you today?",
 };
@@ -293,7 +293,7 @@ const agentEmptyPrompts: Record<string, string> = {
 const aiModels = [
   { id: "auto", name: "Auto", description: "Automatically select the best model", icon: Zap },
   { id: "gpt", name: "GPT", description: "OpenAI GPT-5.2", icon: Bot },
-  { id: "claude", name: "Claude", description: "Anthropic Claude 4.5", icon: Bot, disabled: false },
+  { id: "claude", name: "Claude", description: "Anthropic Claude 4.6", icon: Bot, disabled: false },
   { id: "perplexity", name: "Perplexity", description: "Perplexity Sonar", icon: Globe, disabled: false },
 ];
 
@@ -314,11 +314,10 @@ const agentCapabilities: Record<string, { id: string; name: string; description:
     { id: "cash-flow-analysis", name: "Cash Flow Analysis", description: "Liquidity and cash management" },
     { id: "investment-strategy", name: "Investment Strategy", description: "Capital allocation and ROI" },
   ],
-  coo: [
-    { id: "auto", name: "Auto", description: "Automatically select the best capability" },
-    { id: "process-optimization", name: "Process Optimization", description: "Workflow and efficiency improvements" },
-    { id: "supply-chain", name: "Supply Chain", description: "Logistics and vendor management" },
-    { id: "resource-planning", name: "Resource Planning", description: "Capacity and allocation planning" },
+  cco: [
+    { id: "auto", name: "Auto", description: "Automatically select agent" },
+    { id: "sales_strategy", name: "Sales Strategy", description: "Sales Strategy & Pipeline Management" },
+    { id: "customer_success", name: "Customer Success", description: "Customer Success & Retention" },
   ],
   chro: [
     { id: "auto", name: "Auto", description: "Automatically select the best capability" },
@@ -326,11 +325,10 @@ const agentCapabilities: Record<string, { id: string; name: string; description:
     { id: "employee-engagement", name: "Employee Engagement", description: "Culture and satisfaction metrics" },
     { id: "workforce-planning", name: "Workforce Planning", description: "Headcount and skills forecasting" },
   ],
-  cmo: [
-    { id: "auto", name: "Auto", description: "Automatically select the best capability" },
-    { id: "campaign-analytics", name: "Campaign Analytics", description: "Marketing performance metrics" },
-    { id: "brand-strategy", name: "Brand Strategy", description: "Brand positioning and messaging" },
-    { id: "customer-insights", name: "Customer Insights", description: "Customer behavior and segmentation" },
+  cro: [
+    { id: "auto", name: "Auto", description: "Automatically select agent" },
+    { id: "sales_strategy", name: "Sales Strategy", description: "Sales Strategy & Pipeline Management" },
+    { id: "customer_success", name: "Customer Success", description: "Customer Success & Retention" },
   ],
   cto: [
     { id: "auto", name: "Auto", description: "Automatically select the best capability" },
@@ -362,7 +360,7 @@ const agentChatHistory: Record<string, { title: string; hasMenu: boolean; isActi
     { title: "Tax strategy planning", hasMenu: false, isActive: false },
     { title: "Quarterly earnings call", hasMenu: false, isActive: false },
   ],
-  coo: [
+  cco: [
     { title: "Operations efficiency review", hasMenu: true, isActive: false },
     { title: "Supply chain optimization", hasMenu: false, isActive: true },
     { title: "Process automation plan", hasMenu: false, isActive: false },
@@ -372,7 +370,7 @@ const agentChatHistory: Record<string, { title: string; hasMenu: boolean; isActi
     { title: "Logistics improvement", hasMenu: false, isActive: false },
     { title: "Operational KPIs dashboard", hasMenu: false, isActive: false },
   ],
-  cmo: [
+  cro: [
     { title: "Brand strategy 2025", hasMenu: true, isActive: false },
     { title: "Marketing campaign ROI", hasMenu: false, isActive: true },
     { title: "Social media analytics", hasMenu: false, isActive: false },
@@ -901,7 +899,7 @@ export default function Agents() {
     }
   };
 
-  const isComingSoon = currentAgentKey !== "cso";
+  const isComingSoon = currentAgentKey !== "cso" && currentAgentKey !== "cco";
 
   // Determine which viewer is currently active to ensure expansion logic matches rendered content
   const activeViewer =

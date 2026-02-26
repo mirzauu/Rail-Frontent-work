@@ -404,7 +404,7 @@ export default function Dashboard() {
                   {[
                     { name: "Michael", role: "CSO", status: "Active" },
                     { name: "Raphael", role: "CFO", status: "Idle" },
-                    { name: "Mary", role: "COO", status: "Idle" },
+                    { name: "Mary", role: "CCO", status: "Idle" },
                     { name: "Gabriel", role: "CRO", status: "Idle" },
                     { name: "Emily", role: "CTO", status: "Idle" }
                   ].map((agent, i) => (
