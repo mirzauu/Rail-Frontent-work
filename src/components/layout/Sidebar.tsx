@@ -124,20 +124,39 @@ export function Sidebar() {
         </span>
       </button>
 
-      <div className={cn(
-        "overflow-hidden transition-all duration-300 ease-in-out",
-        collapsed ? "max-h-0 opacity-0 px-0 pb-0" : "max-h-14 opacity-100 px-5 pb-2"
-      )}>
-        <NavLink
-          to="/"
-          className={cn(
-            "flex items-center justify-center py-1.5 text-base font-semibold transition-colors border rounded-lg whitespace-nowrap gap-2",
-            location.pathname === "/" ? "bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-transparent"
-          )}
-        >
-          <LayoutDashboard className="h-4 w-4" />
-          Dashboard
-        </NavLink>
+      <div className={cn("transition-all duration-300 ease-in-out pb-2", collapsed ? "px-2" : "px-5")}>
+        {(() => {
+          const dashboardContent = (
+            <NavLink
+              to="/"
+              className={cn(
+                "flex items-center py-1.5 text-base font-semibold transition-all duration-200 border rounded-lg whitespace-nowrap",
+                collapsed ? "justify-center" : "justify-center gap-2",
+                location.pathname === "/" ? "bg-white/50 dark:bg-gray-800/50 text-gray-900 dark:text-white border-gray-200 dark:border-gray-700" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border-transparent"
+              )}
+            >
+              <LayoutDashboard className={cn("flex-shrink-0 transition-all duration-300", collapsed ? "h-5 w-5" : "h-4 w-4")} />
+              <span className={cn(
+                "whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
+                collapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100"
+              )}>
+                Dashboard
+              </span>
+            </NavLink>
+          );
+
+          if (collapsed) {
+            return (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>{dashboardContent}</TooltipTrigger>
+                <TooltipContent side="right" className="bg-gray-700 text-white border-gray-600">
+                  Dashboard
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+          return dashboardContent;
+        })()}
       </div>
 
       {/* Navigation */}
@@ -208,12 +227,12 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* MEMORY Section - Only show when expanded */}
-        <div className={cn(
-          "overflow-hidden transition-all duration-300 ease-in-out",
-          collapsed ? "max-h-0 opacity-0 mb-0" : "max-h-[300px] opacity-100 mb-4"
-        )}>
-          <div className="flex items-center gap-2 px-2 py-2">
+        {/* MEMORY Section */}
+        <div className="mb-4">
+          <div className={cn(
+            "flex items-center transition-all duration-300 overflow-hidden ease-in-out",
+            collapsed ? "max-h-0 opacity-0 px-0 py-0" : "max-h-10 opacity-100 px-2 py-2 gap-2"
+          )}>
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 whitespace-nowrap">
               Memory
             </span>
@@ -224,31 +243,54 @@ export function Sidebar() {
             {memoryItems.map((item) => {
               const isActive = location.pathname === item.path;
 
-              return (
+              const itemContent = (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 whitespace-nowrap",
+                    "flex items-center text-xs transition-all duration-200",
+                    collapsed
+                      ? "justify-center rounded-lg p-1.5"
+                      : "rounded-lg px-2.5 py-1.5 gap-2",
                     isActive
                       ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/50"
                   )}
                 >
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1 font-medium overflow-hidden text-ellipsis">{item.label}</span>
+                  <item.icon className={cn("flex-shrink-0 transition-all duration-300", collapsed ? "h-5 w-5" : "h-4 w-4")} />
+                  <span className={cn(
+                    "font-medium whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
+                    collapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100 flex-1 text-ellipsis"
+                  )}>
+                    {item.label}
+                  </span>
                 </NavLink>
               );
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.path} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      {itemContent}
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-gray-700 text-white border-gray-600">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return itemContent;
             })}
           </div>
         </div>
 
-        {/* MANAGEMENT Section - Only show when expanded */}
-        <div className={cn(
-          "overflow-hidden transition-all duration-300 ease-in-out",
-          collapsed ? "max-h-0 opacity-0 mb-0" : "max-h-[300px] opacity-100 mb-4"
-        )}>
-          <div className="flex items-center gap-2 px-2 py-2">
+        {/* MANAGEMENT Section */}
+        <div className="mb-4">
+          <div className={cn(
+            "flex items-center transition-all duration-300 overflow-hidden ease-in-out",
+            collapsed ? "max-h-0 opacity-0 px-0 py-0" : "max-h-10 opacity-100 px-2 py-2 gap-2"
+          )}>
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 whitespace-nowrap">
               Management
             </span>
@@ -259,21 +301,44 @@ export function Sidebar() {
             {managementItems.map((item) => {
               const isActive = location.pathname === item.path;
 
-              return (
+              const itemContent = (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 whitespace-nowrap",
+                    "flex items-center text-xs transition-all duration-200",
+                    collapsed
+                      ? "justify-center rounded-lg p-1.5"
+                      : "rounded-lg px-2.5 py-1.5 gap-2",
                     isActive
                       ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
                       : "text-gray-600 dark:text-gray-300 hover:bg-gray-200/70 dark:hover:bg-gray-700/50"
                   )}
                 >
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1 font-medium overflow-hidden text-ellipsis">{item.label}</span>
+                  <item.icon className={cn("flex-shrink-0 transition-all duration-300", collapsed ? "h-5 w-5" : "h-4 w-4")} />
+                  <span className={cn(
+                    "font-medium whitespace-nowrap overflow-hidden transition-all duration-300 ease-in-out",
+                    collapsed ? "max-w-0 opacity-0" : "max-w-[200px] opacity-100 flex-1 text-ellipsis"
+                  )}>
+                    {item.label}
+                  </span>
                 </NavLink>
               );
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.path} delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      {itemContent}
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-gray-700 text-white border-gray-600">
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              return itemContent;
             })}
           </div>
         </div>

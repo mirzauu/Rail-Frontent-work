@@ -540,6 +540,7 @@ export default function Agents() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isNewChat, setIsNewChat] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const leftSidebarRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -610,100 +611,106 @@ export default function Agents() {
       if (isNewChat) return;
       const firstId = selectedProjectId ?? sortedProjects[0].id;
       if (!selectedProjectId) setSelectedProjectId(firstId);
-      const r = await api.fetch(`api/v1/conversations/history/${firstId}`);
-      const d = await r.json();
-      setConversationId(d?.conversation_id ?? null);
-      if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-        setAllPPTs(d.presentations.map((p: any) => ({
-          title: p.title,
-          slides: Array.isArray(p.slides) ? p.slides.map((s: any) => ({
-            title: s.title,
-            content: s.content,
-            slide_type: s.slide_type
-          })) : []
-        })));
-        setActivePPTIndex(0);
-        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-      } else {
-        setAllPPTs([]);
-      }
 
+      setIsLoadingHistory(true);
       try {
-        const pdflist = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs : (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
-        if (pdflist.length > 0) {
-          setAllPDFs(pdflist.map((doc: any) => ({
-            title: doc.title || "Untitled Brief",
-            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-              title: s.title || "Untitled Section",
-              content: s.content || "",
-              section_type: s.section_type || "text"
+        const r = await api.fetch(`api/v1/conversations/history/${firstId}`);
+        const d = await r.json();
+        setConversationId(d?.conversation_id ?? null);
+        if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
+          setAllPPTs(d.presentations.map((p: any) => ({
+            title: p.title,
+            slides: Array.isArray(p.slides) ? p.slides.map((s: any) => ({
+              title: s.title,
+              content: s.content,
+              slide_type: s.slide_type
             })) : []
           })));
-          setActivePDFIndex(pdflist.length - 1);
+          setActivePPTIndex(0);
           if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
         } else {
+          setAllPPTs([]);
+        }
+
+        try {
+          const pdflist = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs : (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
+          if (pdflist.length > 0) {
+            setAllPDFs(pdflist.map((doc: any) => ({
+              title: doc.title || "Untitled Brief",
+              sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                title: s.title || "Untitled Section",
+                content: s.content || "",
+                section_type: s.section_type || "text"
+              })) : []
+            })));
+            setActivePDFIndex(pdflist.length - 1);
+            if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+          } else {
+            setAllPDFs([]);
+          }
+        } catch (e) {
+          console.error("Failed to parse PDF history", e);
           setAllPDFs([]);
         }
-      } catch (e) {
-        console.error("Failed to parse PDF history", e);
-        setAllPDFs([]);
-      }
 
-      try {
-        const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
-        if (doclist.length > 0) {
-          setAllDocs(doclist.map((doc: any) => ({
-            title: doc.title || "Untitled Document",
-            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-              title: s.title || "Untitled Section",
-              content: s.content || "",
-              section_type: s.section_type || "text"
-            })) : []
-          })));
-          setActiveDocIndex(doclist.length - 1);
-          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-          // Use local checks for PPT/PDF existence instead of stale state
-          const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-            (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+        try {
+          const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
+          if (doclist.length > 0) {
+            setAllDocs(doclist.map((doc: any) => ({
+              title: doc.title || "Untitled Document",
+              sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                title: s.title || "Untitled Section",
+                content: s.content || "",
+                section_type: s.section_type || "text"
+              })) : []
+            })));
+            setActiveDocIndex(doclist.length - 1);
+            if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+            // Use local checks for PPT/PDF existence instead of stale state
+            const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+            const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+              (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
 
-          if (!hasPPT && !hasPDF) {
-            setViewMode('doc');
+            if (!hasPPT && !hasPDF) {
+              setViewMode('doc');
+            }
+          } else {
+            setAllDocs([]);
           }
-        } else {
+        } catch (e) {
+          console.error("Failed to parse Word Doc history", e);
           setAllDocs([]);
         }
-      } catch (e) {
-        console.error("Failed to parse Word Doc history", e);
-        setAllDocs([]);
+        const arr = Array.isArray(d?.messages) ? d.messages : [];
+        const conv = arr.map((m: HistoryMessage, idx: number) => {
+          const role = (m.role || "").toLowerCase();
+          const isUserMsg = role === "user";
+
+          // Debugging attachments if present
+          if (isUserMsg && m.attachments && m.attachments.length > 0) {
+            console.log(`User message ${idx} has ${m.attachments.length} attachments:`, m.attachments);
+          }
+
+          return {
+            id: Date.now() + idx,
+            type: isUserMsg ? "user" : "agent",
+            agent: role === "assistant" ? currentAgentKey : undefined,
+            content: m.content || "",
+            time: m.created_at ? new Date(m.created_at).toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false
+            }) : "--:--",
+            attachments: isUserMsg ? m.attachments?.map((a: any) => ({
+              name: a.filename || a.name || "Unnamed file",
+              size: typeof a.file_size_bytes === 'number' ? a.file_size_bytes : (typeof a.size === 'number' ? a.size : 0)
+            })) : undefined,
+          };
+        });
+        setMessages(conv);
+      } finally {
+        setIsLoadingHistory(false);
       }
-      const arr = Array.isArray(d?.messages) ? d.messages : [];
-      const conv = arr.map((m: HistoryMessage, idx: number) => {
-        const role = (m.role || "").toLowerCase();
-        const isUserMsg = role === "user";
-
-        // Debugging attachments if present
-        if (isUserMsg && m.attachments && m.attachments.length > 0) {
-          console.log(`User message ${idx} has ${m.attachments.length} attachments:`, m.attachments);
-        }
-
-        return {
-          id: Date.now() + idx,
-          type: isUserMsg ? "user" : "agent",
-          agent: role === "assistant" ? currentAgentKey : undefined,
-          content: m.content || "",
-          time: m.created_at ? new Date(m.created_at).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false
-          }) : "--:--",
-          attachments: isUserMsg ? m.attachments?.map((a: any) => ({
-            name: a.filename || a.name || "Unnamed file",
-            size: typeof a.file_size_bytes === 'number' ? a.file_size_bytes : (typeof a.size === 'number' ? a.size : 0)
-          })) : undefined,
-        };
-      });
-      setMessages(conv);
     };
     void loadInitial();
   }, [projectsData, currentAgentKey, messages.length === 0]);
@@ -1009,109 +1016,114 @@ export default function Agents() {
                   onClick={async () => {
                     if (!chat.projectId) return;
                     setSelectedProjectId(chat.projectId);
-                    const r = await api.fetch(`api/v1/conversations/history/${chat.projectId}`);
-                    const d = await r.json();
-                    setConversationId(d?.conversation_id ?? null);
-                    if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-                      const pptsData = d.presentations.map((p: any) => ({
-                        title: p.title,
-                        slides: p.slides.map((s: any) => ({
-                          title: s.title,
-                          content: s.content,
-                          slide_type: s.slide_type
-                        }))
-                      }));
-                      setAllPPTs(pptsData);
-                      setActivePPTIndex(pptsData.length - 1);
-                      if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-                      setViewMode('ppt');
-                    } else {
-                      setAllPPTs([]);
-                      setActivePPTIndex(0);
-                    }
+                    setIsLoadingHistory(true);
                     try {
-                      const pdfsArr = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs :
-                        (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
-
-                      if (pdfsArr.length > 0) {
-                        const pdfsData = pdfsArr.map((doc: any) => ({
-                          title: doc.title || "Untitled Brief",
-                          sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                            title: s.title || "Untitled Section",
-                            content: s.content || "",
-                            section_type: s.section_type || "text"
-                          })) : []
+                      const r = await api.fetch(`api/v1/conversations/history/${chat.projectId}`);
+                      const d = await r.json();
+                      setConversationId(d?.conversation_id ?? null);
+                      if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
+                        const pptsData = d.presentations.map((p: any) => ({
+                          title: p.title,
+                          slides: p.slides.map((s: any) => ({
+                            title: s.title,
+                            content: s.content,
+                            slide_type: s.slide_type
+                          }))
                         }));
-                        setAllPDFs(pdfsData);
-                        setActivePDFIndex(pdfsData.length - 1);
+                        setAllPPTs(pptsData);
+                        setActivePPTIndex(pptsData.length - 1);
                         if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-                        if (!d?.presentations || d.presentations.length === 0) {
-                          setViewMode('pdf');
-                        }
+                        setViewMode('ppt');
                       } else {
+                        setAllPPTs([]);
+                        setActivePPTIndex(0);
+                      }
+                      try {
+                        const pdfsArr = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs :
+                          (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
+
+                        if (pdfsArr.length > 0) {
+                          const pdfsData = pdfsArr.map((doc: any) => ({
+                            title: doc.title || "Untitled Brief",
+                            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                              title: s.title || "Untitled Section",
+                              content: s.content || "",
+                              section_type: s.section_type || "text"
+                            })) : []
+                          }));
+                          setAllPDFs(pdfsData);
+                          setActivePDFIndex(pdfsData.length - 1);
+                          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                          if (!d?.presentations || d.presentations.length === 0) {
+                            setViewMode('pdf');
+                          }
+                        } else {
+                          setAllPDFs([]);
+                          setActivePDFIndex(0);
+                        }
+                      } catch (e) {
+                        console.error("Failed to parse PDF history", e);
                         setAllPDFs([]);
                         setActivePDFIndex(0);
                       }
-                    } catch (e) {
-                      console.error("Failed to parse PDF history", e);
-                      setAllPDFs([]);
-                      setActivePDFIndex(0);
-                    }
 
-                    try {
-                      const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
-                      if (doclist.length > 0) {
-                        setAllDocs(doclist.map((doc: any) => ({
-                          title: doc.title || "Untitled Document",
-                          sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                            title: s.title || "Untitled Section",
-                            content: s.content || "",
-                            section_type: s.section_type || "text"
-                          })) : []
-                        })));
-                        setActiveDocIndex(doclist.length - 1);
-                        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+                      try {
+                        const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
+                        if (doclist.length > 0) {
+                          setAllDocs(doclist.map((doc: any) => ({
+                            title: doc.title || "Untitled Document",
+                            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
+                              title: s.title || "Untitled Section",
+                              content: s.content || "",
+                              section_type: s.section_type || "text"
+                            })) : []
+                          })));
+                          setActiveDocIndex(doclist.length - 1);
+                          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
 
-                        // If no PPT/PDF, switch view to DOC
-                        const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                        const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                          (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                          // If no PPT/PDF, switch view to DOC
+                          const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                            (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
 
-                        if (!hasPPT && !hasPDF) {
-                          setViewMode('doc');
+                          if (!hasPPT && !hasPDF) {
+                            setViewMode('doc');
+                          }
+                        } else {
+                          setAllDocs([]);
+                          setActiveDocIndex(0);
                         }
-                      } else {
+                      } catch (e) {
+                        console.error("Failed to parse Word Doc history", e);
                         setAllDocs([]);
                         setActiveDocIndex(0);
                       }
-                    } catch (e) {
-                      console.error("Failed to parse Word Doc history", e);
-                      setAllDocs([]);
-                      setActiveDocIndex(0);
-                    }
 
-                    // Automatically close sidebar if no documents are present in this chat
-                    const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                    const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                      (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-                    const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
+                      // Automatically close sidebar if no documents are present in this chat
+                      const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
+                      const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
+                        (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
+                      const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
 
-                    if (!hasPPT && !hasPDF && !hasDoc) {
-                      setIsRightSidebarOpen(false);
-                    } else {
-                      // Ensure it's open if we have content
-                      setIsRightSidebarOpen(true);
+                      if (!hasPPT && !hasPDF && !hasDoc) {
+                        setIsRightSidebarOpen(false);
+                      } else {
+                        // Ensure it's open if we have content
+                        setIsRightSidebarOpen(true);
+                      }
+                      const arr = Array.isArray(d?.messages) ? d.messages : [];
+                      const conv = arr.map((m: HistoryMessage, idx: number) => ({
+                        id: Date.now() + idx,
+                        type: m.role === "user" ? "user" : "agent",
+                        agent: m.role === "assistant" ? currentAgentKey : undefined,
+                        content: m.content,
+                        tool_calls: m.tool_calls,
+                        time: new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
+                      }));
+                      setMessages(conv);
+                    } finally {
+                      setIsLoadingHistory(false);
                     }
-                    const arr = Array.isArray(d?.messages) ? d.messages : [];
-                    const conv = arr.map((m: HistoryMessage, idx: number) => ({
-                      id: Date.now() + idx,
-                      type: m.role === "user" ? "user" : "agent",
-                      agent: m.role === "assistant" ? currentAgentKey : undefined,
-                      content: m.content,
-                      tool_calls: m.tool_calls,
-                      time: new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false }),
-                    }));
-                    setMessages(conv);
                   }}
                 >
                   <span className={cn(
@@ -1178,7 +1190,36 @@ export default function Agents() {
         <ScrollArea className="flex-1 p-6">
           <div className="max-w-[95%] mx-auto space-y-6">
             {/* Conversation Messages */}
-            {displayMessages.length === 0 ? (
+            {isLoadingHistory ? (
+              <div className="flex flex-col gap-8 w-full py-4 relative z-0">
+                {/* Skeleton User Message */}
+                <div className="flex justify-end pr-4 sm:pr-8">
+                  <div className="bg-primary/20 dark:bg-primary/20 w-3/4 sm:w-[300px] h-[80px] rounded-2xl rounded-tr-sm shadow-sm relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-primary/40 dark:via-primary/40 to-transparent" />
+                  </div>
+                </div>
+                {/* Skeleton Agent Message */}
+                <div className="flex items-start gap-4 pl-0 sm:pl-4">
+                  <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-800 flex-shrink-0 relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/10 to-transparent" />
+                  </div>
+                  <div className="flex flex-col gap-3 w-full max-w-[85%]">
+                    <div className="bg-slate-200 dark:bg-slate-800 w-full sm:w-[450px] h-[120px] rounded-2xl rounded-tl-sm shadow-sm relative overflow-hidden">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/10 to-transparent" />
+                    </div>
+                    <div className="bg-slate-200 dark:bg-slate-800 w-3/4 sm:w-[350px] h-[60px] rounded-2xl rounded-tl-sm shadow-sm relative overflow-hidden">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/10 to-transparent" />
+                    </div>
+                  </div>
+                </div>
+                {/* Skeleton User Message 2 */}
+                <div className="flex justify-end pr-4 sm:pr-8 mt-4">
+                  <div className="bg-primary/20 dark:bg-primary/20 w-2/3 sm:w-[250px] h-[60px] rounded-2xl rounded-tr-sm shadow-sm relative overflow-hidden">
+                    <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-primary/40 dark:via-primary/40 to-transparent" />
+                  </div>
+                </div>
+              </div>
+            ) : displayMessages.length === 0 ? (
               <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-foreground">

@@ -114,8 +114,65 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-background">
-        <div className="h-12 w-12 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] p-6 md:p-8 lg:p-10 space-y-8 pointer-events-none">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-slate-200 dark:bg-slate-800 rounded-xl relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+              </div>
+              <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 hidden md:flex">
+            <div className="h-12 w-[180px] bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+            <div className="h-12 w-[140px] bg-slate-200 dark:bg-slate-800 rounded-full relative overflow-hidden hidden lg:block">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+          </div>
+        </div>
+
+        {/* 4 Stat Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-[140px] bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content Skeleton */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 h-full">
+          <div className="xl:col-span-2 space-y-8">
+            <div className="h-[380px] bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+            <div className="flex gap-6 w-full">
+              <div className="h-[250px] flex-1 bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden hidden md:block">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+              </div>
+              <div className="h-[250px] flex-1 bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-8">
+            <div className="h-[300px] bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+            <div className="h-[350px] bg-slate-200 dark:bg-slate-800 rounded-[32px] relative overflow-hidden">
+              <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
