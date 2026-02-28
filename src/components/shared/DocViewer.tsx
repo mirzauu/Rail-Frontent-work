@@ -690,7 +690,7 @@ export function DocViewer({ doc, isLargeView = false, onToggleLargeView }: DocVi
                         title="Reader Mode"
                     >
                         <Play className="h-4 w-4 fill-current" />
-                    </Button>
+                    </Button>   
                     <Button
                         variant="ghost"
                         size="icon"

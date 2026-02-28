@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { downloadPDF, downloadDOCX } from "@/lib/downloadMessage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check, Bot } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,50 +61,58 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const isPPT = toolName.includes("ppt") || toolName.includes("slide");
   const isPDF = toolName.includes("pdf");
   const isDoc = toolName.includes("word") || toolName.includes("doc");
+  const isConsultAgent = toolName.startsWith("consult_") || toolName.startsWith("consultant_");
   const isCallEvent = toolCall.event_type === "ToolCallEventType.CALL";
   const isCompleted = !isCallEvent && (toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response);
 
-  const [isOpen, setIsOpen] = useState(isThink ? !isCompleted : false);
+  const [isOpen, setIsOpen] = useState(!isCompleted);
 
-  // Auto-collapse think tool when completed
+  // Auto-collapse when tool finishes
   React.useEffect(() => {
-    if (isThink && isCompleted) {
+    if (isCompleted) {
       setIsOpen(false);
     }
-  }, [isThink, isCompleted]);
+  }, [isCompleted]);
 
   // Extract info from summary or direct properties
   const details = toolCall.tool_call_details?.summary;
   const args = (details?.args as any) || (toolCall as any).args || {};
   const result = (details?.result as any) || (toolCall as any).result || {};
 
-  const title = isThink
-    ? (isCompleted ? "Thought" : "Thinking...")
-    : isSearch
-      ? (isCompleted ? "Search Results" : "Searching...")
-      : isKnowledgeBase
-        ? (isCompleted ? "Knowledge Base Insights" : "Consulting Knowledge Base...")
-        : isPPT
-          ? (toolName.includes("create") ? "Creating Presentation" : "Adding Slide")
-          : isPDF
-            ? (toolName.includes("create") ? "Generating Strategy Brief" : "Adding Brief Section")
-            : isDoc
-              ? (toolName.includes("create") ? "Creating Word Document" : "Adding Document Section")
-              : `Tool: ${toolCall.tool_name}`;
+  const consultNameRaw = isConsultAgent ? toolName.replace(/^consult(ant)?_/, "").replace(/_/g, " ") : "";
+  const consultAgentName = consultNameRaw.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
-  const icon = isThink
-    ? <Brain className="h-3 w-3" />
-    : isSearch
-      ? <Globe className="h-3 w-3" />
-      : isKnowledgeBase
-        ? <Database className="h-3 w-3" />
-        : isPPT
-          ? (Presentation ? <Presentation className="h-3 w-3" /> : <FileText className="h-3 w-3" />)
-          : isPDF
-            ? <FileText className="h-3 w-3" />
-            : isDoc
-              ? <FileText className="h-3 w-3 text-blue-500" />
-              : <Code className="h-3 w-3" />;
+  const title = isConsultAgent
+    ? (isCompleted ? `${consultAgentName} Response` : `${consultAgentName} is thinking...`)
+    : isThink
+      ? (isCompleted ? "Thought" : "Thinking...")
+      : isSearch
+        ? (isCompleted ? "Search Results" : "Searching...")
+        : isKnowledgeBase
+          ? (isCompleted ? "Knowledge Base Insights" : "Consulting Knowledge Base...")
+          : isPPT
+            ? (toolName.includes("create") ? "Creating Presentation" : "Adding Slide")
+            : isPDF
+              ? (toolName.includes("create") ? "Generating Strategy Brief" : "Adding Brief Section")
+              : isDoc
+                ? (toolName.includes("create") ? "Creating Word Document" : "Adding Document Section")
+                : `Tool: ${toolCall.tool_name}`;
+
+  const icon = isConsultAgent
+    ? <Bot className="h-3 w-3 text-emerald-500" />
+    : isThink
+      ? <Brain className="h-3 w-3" />
+      : isSearch
+        ? <Globe className="h-3 w-3" />
+        : isKnowledgeBase
+          ? <Database className="h-3 w-3" />
+          : isPPT
+            ? (Presentation ? <Presentation className="h-3 w-3" /> : <FileText className="h-3 w-3" />)
+            : isPDF
+              ? <FileText className="h-3 w-3" />
+              : isDoc
+                ? <FileText className="h-3 w-3 text-blue-500" />
+                : <Code className="h-3 w-3" />;
 
   // Normalized content extracting
   let bodyContent: React.ReactNode = null;
@@ -232,7 +240,6 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
                 ))}
               </div>
             )}
-
             {textContent && textContent.trim().length > 0 && (
               <div className={cn(
                 "text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex flex-col gap-2",
@@ -256,6 +263,65 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse py-2">
             <Loader2 className="h-3 w-3 animate-spin" />
             Scanning database indexes...
+          </div>
+        )}
+      </div>
+    );
+  } else if (isConsultAgent) {
+    const query = args?.query || args?.message || (typeof args === 'string' ? args : "");
+    let consultContent = "";
+
+    // Result might be a string like "AgentRunResult(output='...')" 
+    const rawResult = typeof result === 'string' ? result : (toolCall.tool_response || "");
+    if (rawResult) {
+      if (rawResult.startsWith("AgentRunResult(output=")) {
+        const quoteChar = rawResult.charAt(22); // ' or "
+        if (quoteChar === "'" || quoteChar === '"') {
+          const last = rawResult.lastIndexOf(quoteChar);
+          if (last > 22) {
+            consultContent = rawResult.substring(23, last);
+            const unescapedQuote = new RegExp('\\\\' + quoteChar, 'g');
+            consultContent = consultContent.replace(unescapedQuote, quoteChar).replace(/\\n/g, "\n");
+          } else {
+            consultContent = rawResult.replace(/\\n/g, "\n");
+          }
+        } else {
+          consultContent = rawResult.replace(/\\n/g, "\n");
+        }
+      } else {
+        consultContent = rawResult.replace(/\\n/g, "\n");
+      }
+    } else if (result?.output) {
+      consultContent = String(result.output).replace(/\\n/g, "\n");
+    } else if (result?.content) {
+      consultContent = String(result.content).replace(/\\n/g, "\n");
+    }
+
+    bodyContent = (
+      <div className="space-y-3 py-2 font-sans">
+        {query && (
+          <div className="flex items-start gap-2 text-[11px] bg-muted/30 px-3 py-2 rounded-md w-full border border-border/40">
+            <span className="font-semibold opacity-70 mt-0.5">Task:</span>
+            <span className="opacity-90 leading-relaxed overflow-hidden text-ellipsis">{query}</span>
+          </div>
+        )}
+        {isCompleted ? (
+          consultContent ? (
+            <div className="bg-card/50 border border-border/40 rounded-lg p-4 shadow-sm mt-3">
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 selection:bg-primary/20">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{consultContent}</ReactMarkdown>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[12px] text-muted-foreground bg-muted/20 p-3 rounded-lg border border-dashed border-border flex items-center gap-2">
+              <Info className="h-3.3 w-3.5" />
+              Agent returned no content.
+            </div>
+          )
+        ) : (
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground animate-pulse py-2">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Analyzing and generating response...
           </div>
         )}
       </div>

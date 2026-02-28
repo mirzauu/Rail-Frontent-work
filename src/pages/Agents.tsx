@@ -569,10 +569,19 @@ export default function Agents() {
   const initialConversation = agentConversations[agentId || "cso"] || agentConversations.cso;
 
   // Initialize messages with current conversation when agent changes
-  const currentAgent = agentId || "cso";
-  if (messages.length === 0 || (messages.length > 0 && messages[0]?.agent !== currentAgent && messages[0]?.type === "agent")) {
-    // Only reset if we haven't initialized or agent changed
-  }
+  useEffect(() => {
+    setMessages([]);
+    setConversationId(null);
+    setSelectedProjectId(null);
+    setAllPPTs([]);
+    setActivePPTIndex(0);
+    setAllPDFs([]);
+    setActivePDFIndex(0);
+    setAllDocs([]);
+    setActiveDocIndex(0);
+    setIsRightSidebarOpen(false);
+    setIsNewChat(false);
+  }, [currentAgentKey]);
 
   // Get the conversation to display (initial + new messages)
   const displayMessages = messages;
@@ -697,7 +706,7 @@ export default function Agents() {
       setMessages(conv);
     };
     void loadInitial();
-  }, [projectsData, currentAgentKey]);
+  }, [projectsData, currentAgentKey, messages.length === 0]);
 
   const lastScrollTime = useRef(0);
 
@@ -734,7 +743,7 @@ export default function Agents() {
     const assistantMessage: Message = {
       id: assistantId,
       type: "agent",
-      agent: currentAgent,
+      agent: currentAgentKey,
       content: "",
       time: currentTime,
       tool_calls: []
@@ -1173,7 +1182,7 @@ export default function Agents() {
               <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-foreground">
-                    {`Hi ${userName}, ${agentEmptyPrompts[currentAgent] || "How can I help you?"}`}
+                    {`Hi ${userName}, ${agentEmptyPrompts[currentAgentKey] || "How can I help you?"}`}
                   </h3>
                 </div>
               </div>
@@ -1466,7 +1475,7 @@ export default function Agents() {
                         </TooltipContent>
                       </Tooltip>
                       <DropdownMenuContent align="end" className="w-56">
-                        {(agentCapabilities[currentAgent] || agentCapabilities.cso).map((capability) => (
+                        {(agentCapabilities[currentAgentKey] || agentCapabilities.cso).map((capability) => (
                           <DropdownMenuItem
                             key={capability.id}
                             onClick={() => {

@@ -228,14 +228,6 @@ export default function Memory() {
               </Card>
             </TabsContent>
           </Tabs>
-
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/50 backdrop-blur-[1px]">
-            <div className="bg-background/95 border border-border px-8 py-4 rounded-full shadow-lg">
-              <span className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Coming Soon
-              </span>
-            </div>
-          </div>
         </div>
       ) : (
         <GraphView />
