@@ -1,4 +1,4 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,7 @@ import { downloadPDF, downloadDOCX } from "@/lib/downloadMessage";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check, Bot } from "lucide-react";
+import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check, Bot, BarChart3 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +14,56 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+
+// Context that lets MarkdownLink cards call the parent's open-panel handler
+const SpreadsheetOpenContext = createContext<((url: string, name: string) => void) | null>(null);
+
+const MarkdownLink = ({ children, href }: { children: React.ReactNode; href?: string }) => {
+  const openSpreadsheet = useContext(SpreadsheetOpenContext);
+
+  if (href && (href.toLowerCase().endsWith('.csv') || href.toLowerCase().endsWith('.xlsx'))) {
+    let displayName = children?.toString() || 'Data File';
+    if (displayName === href) {
+      displayName = href.split('/').pop() || 'Data File';
+    }
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (openSpreadsheet) {
+        e.preventDefault();
+        openSpreadsheet(href, displayName);
+      }
+      // else fall through to normal download
+    };
+
+    return (
+      <a
+        href={href}
+        download={!openSpreadsheet}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="no-underline block my-5 outline-none w-fit"
+        onClick={handleClick}
+      >
+        <div className="flex items-center p-3 pr-10 rounded-xl border border-border/50 bg-card/60 hover:bg-accent/60 transition-colors gap-4 shadow-sm">
+          <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-300 flex items-center justify-center flex-shrink-0">
+            <BarChart3 className="h-5 w-5 text-slate-800" />
+          </div>
+          <div className="flex flex-col overflow-hidden">
+            <span className="font-medium text-[14px] text-foreground truncate">{displayName}</span>
+            <span className="text-[12px] text-muted-foreground mt-0.5">Spreadsheet</span>
+          </div>
+        </div>
+      </a>
+    );
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
+      {children}
+    </a>
+  );
+};
 
 export interface ToolCall {
   call_id: string;
@@ -45,6 +94,7 @@ interface ChatBubbleProps {
   isStreaming?: boolean;
   messageId?: string | number;
   attachments?: (File | { name: string; size: number })[];
+  onSpreadsheetOpen?: (url: string, name: string) => void;
 }
 
 const TypingDots = () => {
@@ -137,7 +187,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         )}
         {isCompleted && analysis && (
           <div className="text-foreground/80 border-t border-border/40 pt-2 mt-2">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{analysis}</ReactMarkdown>
           </div>
         )}
       </div>
@@ -150,7 +200,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
         {query && <div className="text-[11px] opacity-70">Query: {query}</div>}
         {isCompleted && content && (
           <div className="text-[12px] leading-relaxed border-t border-border/40 pt-2 mt-2 prose prose-xs dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{content}</ReactMarkdown>
           </div>
         )}
       </div>
@@ -251,7 +301,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
               )}>
                 {facts.length === 0 && <Info className="h-3.3 w-3.5 flex-shrink-0" />}
                 <div className="prose prose-xs dark:prose-invert w-full max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{textContent}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{textContent}</ReactMarkdown>
                 </div>
               </div>
             )}
@@ -313,7 +363,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
           consultContent ? (
             <div className="bg-card/50 border border-border/40 rounded-lg p-4 shadow-sm mt-3">
               <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 selection:bg-primary/20">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{consultContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ a: MarkdownLink }}>{consultContent}</ReactMarkdown>
               </div>
             </div>
           ) : (
@@ -379,7 +429,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   );
 }
 
-export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, isStreaming, messageId, attachments }: ChatBubbleProps) => {
+export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, isStreaming, messageId, attachments, onSpreadsheetOpen }: ChatBubbleProps) => {
   const isUser = role === "user";
   const [isCopied, setIsCopied] = useState(false);
   const [isThumbedUp, setIsThumbedUp] = useState(false);
@@ -498,205 +548,201 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
   }, [content, tool_calls]);
 
   return (
-    <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden group", isUser ? "justify-end" : "justify-start")}>
-      <div className={cn("flex flex-col min-w-0 overflow-hidden", isUser ? "items-end max-w-[85%]" : "items-start max-w-full")}>
-        <div className="flex items-center gap-2 mb-1 px-1">
-          <span className="text-xs font-medium text-muted-foreground">
-            {name}
-          </span>
-          {timestamp && <span className="text-xs text-muted-foreground/60">{timestamp}</span>}
-        </div>
-
-        {/* Legacy behavior: if no markers found, render all tool calls at the top */}
-        {!hasMarkers && tool_calls && tool_calls.length > 0 && (
-          <div className="w-full mb-2 space-y-2">
-            {tool_calls.map((tc, idx) => (
-              <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
-            ))}
+    <SpreadsheetOpenContext.Provider value={onSpreadsheetOpen ?? null}>
+      <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden group", isUser ? "justify-end" : "justify-start")}>
+        <div className={cn("flex flex-col min-w-0 overflow-hidden", isUser ? "items-end max-w-[85%]" : "items-start max-w-full")}>
+          <div className="flex items-center gap-2 mb-1 px-1">
+            <span className="text-xs font-medium text-muted-foreground">
+              {name}
+            </span>
+            {timestamp && <span className="text-xs text-muted-foreground/60">{timestamp}</span>}
           </div>
-        )}
 
-        {/* If markers exist, render any orphaned tool calls at the top (or could be bottom) */}
-        {hasMarkers && orphanedToolCalls.length > 0 && (
-          <div className="w-full mb-2 space-y-2">
-            {orphanedToolCalls.map((tc, idx) => (
-              <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
-            ))}
-          </div>
-        )}
-
-        <div
-          className={cn(
-            "text-sm overflow-hidden inline-block max-w-full",
-            isUser
-              ? "rounded-lg p-4 shadow-sm bg-primary text-primary-foreground"
-              : "text-foreground w-full"
+          {/* Legacy behavior: if no markers found, render all tool calls at the top */}
+          {!hasMarkers && tool_calls && tool_calls.length > 0 && (
+            <div className="w-full mb-2 space-y-2">
+              {tool_calls.map((tc, idx) => (
+                <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
+              ))}
+            </div>
           )}
-        >
+
+          {/* If markers exist, render any orphaned tool calls at the top (or could be bottom) */}
+          {hasMarkers && orphanedToolCalls.length > 0 && (
+            <div className="w-full mb-2 space-y-2">
+              {orphanedToolCalls.map((tc, idx) => (
+                <ToolCallItem key={tc.call_id || idx} toolCall={tc} />
+              ))}
+            </div>
+          )}
+
           <div
             className={cn(
-              "prose prose-sm dark:prose-invert max-w-none break-words overflow-x-auto",
-              isUser ? "prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground" : ""
+              "text-sm overflow-hidden inline-block max-w-full",
+              isUser
+                ? "rounded-lg p-4 shadow-sm bg-primary text-primary-foreground"
+                : "text-foreground w-full"
             )}
           >
-            {attachments && attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3 not-prose">
-                {attachments.map((file, index) => (
-                  <div key={index} className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-xs max-w-full border",
-                    isUser
-                      ? "bg-white/10 text-primary-foreground border-white/20"
-                      : "bg-muted border-border"
-                  )}>
-                    <FileText className="h-4 w-4 flex-shrink-0 opacity-80" />
-                    <span className="truncate font-medium">{file.name}</span>
-                    <span className="opacity-60 text-[10px]">
-                      ({(file.size / 1024).toFixed(1)} KB)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div
+              className={cn(
+                "prose prose-sm dark:prose-invert max-w-none break-words overflow-x-auto",
+                isUser ? "prose-p:text-primary-foreground prose-headings:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground" : ""
+              )}
+            >
+              {attachments && attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3 not-prose">
+                  {attachments.map((file, index) => (
+                    <div key={index} className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-xs max-w-full border",
+                      isUser
+                        ? "bg-white/10 text-primary-foreground border-white/20"
+                        : "bg-muted border-border"
+                    )}>
+                      <FileText className="h-4 w-4 flex-shrink-0 opacity-80" />
+                      <span className="truncate font-medium">{file.name}</span>
+                      <span className="opacity-60 text-[10px]">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {segments.map((segment, idx) => {
-              if (segment.type === 'tool' && segment.id) {
-                const tc = tool_calls?.find(t => t.call_id === segment.id);
-                if (tc) return <div key={`tool-${segment.id}-${idx}`} className="not-prose my-2"><ToolCallItem toolCall={tc} /></div>;
-                return null;
-              } else if (segment.type === 'text' && segment.content) {
-                const processed = processContent(segment.content);
-                // If checking for empty processed content to avoid empty paragraphs? 
-                // ReactMarkdown handles it mostly.
-                if (!processed.trim()) return null;
-                return (
-                  <ReactMarkdown
-                    key={`text-${idx}`}
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      strong({ children, ...props }) {
-                        return (
-                          <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
-                            {children}
-                          </strong>
-                        );
-                      },
-                      blockquote({ children }) {
-                        return (
-                          <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
-                            {children}
-                          </blockquote>
-                        );
-                      },
-                      ul({ children }) {
-                        return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
-                      },
-                      ol({ children }) {
-                        return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
-                      },
-                      li({ children }) {
-                        return <li className="pl-1">{children}</li>;
-                      },
-                      hr() {
-                        return <hr className="my-6 border-border" />;
-                      },
-                      code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
-                        const text = String(children ?? "");
-                        const isBlock =
-                          inline === false ||
-                          (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
+              {segments.map((segment, idx) => {
+                if (segment.type === 'tool' && segment.id) {
+                  const tc = tool_calls?.find(t => t.call_id === segment.id);
+                  if (tc) return <div key={`tool-${segment.id}-${idx}`} className="not-prose my-2"><ToolCallItem toolCall={tc} /></div>;
+                  return null;
+                } else if (segment.type === 'text' && segment.content) {
+                  const processed = processContent(segment.content);
+                  // If checking for empty processed content to avoid empty paragraphs? 
+                  // ReactMarkdown handles it mostly.
+                  if (!processed.trim()) return null;
+                  return (
+                    <ReactMarkdown
+                      key={`text-${idx}`}
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        strong({ children, ...props }) {
+                          return (
+                            <strong className={cn("font-bold", isUser ? "text-primary-foreground" : "text-foreground")} {...props}>
+                              {children}
+                            </strong>
+                          );
+                        },
+                        blockquote({ children }) {
+                          return (
+                            <blockquote className="border-l-4 border-primary/30 pl-4 italic text-muted-foreground my-4">
+                              {children}
+                            </blockquote>
+                          );
+                        },
+                        ul({ children }) {
+                          return <ul className="list-disc pl-6 my-2 space-y-1">{children}</ul>;
+                        },
+                        ol({ children }) {
+                          return <ol className="list-decimal pl-6 my-2 space-y-1">{children}</ol>;
+                        },
+                        li({ children }) {
+                          return <li className="pl-1">{children}</li>;
+                        },
+                        hr() {
+                          return <hr className="my-6 border-border" />;
+                        },
+                        code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+                          const text = String(children ?? "");
+                          const isBlock =
+                            inline === false ||
+                            (inline === undefined && ((className && className.includes("language-")) || text.includes("\n")));
 
-                        return isBlock ? (
-                          <pre className="rounded-md p-4 my-4 overflow-x-auto w-full bg-muted/20 border border-border/50 text-foreground">
-                            <code className={cn("text-[11px] font-mono", className)} {...props}>
+                          return isBlock ? (
+                            <pre className="rounded-md p-4 my-4 overflow-x-auto w-full bg-muted/20 border border-border/50 text-foreground">
+                              <code className={cn("text-[11px] font-mono", className)} {...props}>
+                                {children}
+                              </code>
+                            </pre>
+                          ) : (
+                            <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
                               {children}
                             </code>
-                          </pre>
-                        ) : (
-                          <code className={cn("bg-background/30 rounded px-1 py-0.5 font-mono text-xs", className)} {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                      table({ children }) {
-                        return (
-                          <div className="overflow-x-auto my-6 border border-border/60 rounded-lg shadow-sm block w-full bg-card">
-                            <table className="text-[12px] text-left border-collapse table-auto w-full">
-                              {children}
-                            </table>
-                          </div>
-                        );
-                      },
-                      thead({ children }) {
-                        return <thead className="bg-muted/40 border-b border-border/60">{children}</thead>;
-                      },
-                      th({ children }) {
-                        return <th className="px-4 py-2.5 font-semibold border-r border-border/40 last:border-r-0 whitespace-nowrap text-foreground/80">{children}</th>;
-                      },
-                      td({ children }) {
-                        return <td className="px-4 py-2.5 border-t border-border/40 border-r border-border/40 last:border-r-0 min-w-[120px] text-foreground/70 leading-relaxed">{children}</td>;
-                      },
-                      a({ children, href }) {
-                        return (
-                          <a href={href} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-blue-500">
-                            {children}
-                          </a>
-                        );
-                      }
-                    }}
+                          );
+                        },
+                        table({ children }) {
+                          return (
+                            <div className="overflow-x-auto my-6 border border-border/60 rounded-lg shadow-sm block w-full bg-card">
+                              <table className="text-[12px] text-left border-collapse table-auto w-full">
+                                {children}
+                              </table>
+                            </div>
+                          );
+                        },
+                        thead({ children }) {
+                          return <thead className="bg-muted/40 border-b border-border/60">{children}</thead>;
+                        },
+                        th({ children }) {
+                          return <th className="px-4 py-2.5 font-semibold border-r border-border/40 last:border-r-0 whitespace-nowrap text-foreground/80">{children}</th>;
+                        },
+                        td({ children }) {
+                          return <td className="px-4 py-2.5 border-t border-border/40 border-r border-border/40 last:border-r-0 min-w-[120px] text-foreground/70 leading-relaxed">{children}</td>;
+                        },
+                        a: MarkdownLink
+                      }}
+                    >
+                      {processed}
+                    </ReactMarkdown>
+                  );
+                }
+                return null;
+              })}
+
+              {showTyping ? (
+                <TypingDots />
+              ) : null}
+
+              {!isUser && !isLoading && !isStreaming && (
+                <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
+                        <Download className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => handleDownload('pdf')} className="text-xs">
+                        <FileText className="mr-2 h-3.5 w-3.5" />
+                        Download PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDownload('docx')} className="text-xs">
+                        <FileText className="mr-2 h-3.5 w-3.5" />
+                        Download Word
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                    onClick={handleCopy}
                   >
-                    {processed}
-                  </ReactMarkdown>
-                );
-              }
-              return null;
-            })}
+                    {isCopied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
 
-            {showTyping ? (
-              <TypingDots />
-            ) : null}
-
-            {!isUser && !isLoading && !isStreaming && (
-              <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground">
-                      <Download className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => handleDownload('pdf')} className="text-xs">
-                      <FileText className="mr-2 h-3.5 w-3.5" />
-                      Download PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDownload('docx')} className="text-xs">
-                      <FileText className="mr-2 h-3.5 w-3.5" />
-                      Download Word
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
-                  onClick={handleCopy}
-                >
-                  {isCopied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
-                  onClick={handleThumbsUp}
-                >
-                  <ThumbsUp className={cn("h-3.5 w-3.5", isThumbedUp && "text-blue-500 fill-blue-500")} />
-                </Button>
-              </div>
-            )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+                    onClick={handleThumbsUp}
+                  >
+                    <ThumbsUp className={cn("h-3.5 w-3.5", isThumbedUp && "text-blue-500 fill-blue-500")} />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </SpreadsheetOpenContext.Provider>
   );
 });

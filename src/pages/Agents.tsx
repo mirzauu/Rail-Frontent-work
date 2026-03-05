@@ -40,7 +40,8 @@ import {
   X,
   Presentation,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ import { ChatBubble, type ToolCall } from "@/components/shared/ChatBubble";
 import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
 import { PDFViewer, type PDF } from "@/components/shared/PDFViewer";
 import { DocViewer, type Doc } from "@/components/shared/DocViewer";
+import { SpreadsheetViewer, type Spreadsheet } from "@/components/shared/SpreadsheetViewer";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -438,7 +440,10 @@ export default function Agents() {
   const currentDoc = allDocs[activeDocIndex] || null;
   const [isDocLargeView, setIsDocLargeView] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc'>('ppt');
+  const [currentSpreadsheet, setCurrentSpreadsheet] = useState<Spreadsheet | null>(null);
+  const [isSpreadsheetLargeView, setIsSpreadsheetLargeView] = useState(false);
+
+  const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc' | 'spreadsheet'>('ppt');
 
   useEffect(() => {
     let ppts: PPT[] = [];
@@ -583,6 +588,7 @@ export default function Agents() {
     setActivePDFIndex(0);
     setAllDocs([]);
     setActiveDocIndex(0);
+    setCurrentSpreadsheet(null);
     setIsRightSidebarOpen(false);
     setIsNewChat(false);
   }, [currentAgentKey]);
@@ -918,7 +924,12 @@ export default function Agents() {
     }
   };
 
-  // Handle key press (Enter to send)
+  const handleSpreadsheetOpen = (url: string, name: string) => {
+    setCurrentSpreadsheet({ url, title: name });
+    setViewMode('spreadsheet');
+    if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputMessage.trim()) {
       handleSendMessage();
@@ -929,15 +940,18 @@ export default function Agents() {
 
   // Determine which viewer is currently active to ensure expansion logic matches rendered content
   const activeViewer =
-    (viewMode === 'ppt' && currentPPT) ? 'ppt' :
-      (viewMode === 'pdf' && currentPDF) ? 'pdf' :
-        (viewMode === 'doc' && currentDoc) ? 'doc' :
-          currentPPT ? 'ppt' :
-            currentPDF ? 'pdf' :
-              currentDoc ? 'doc' :
-                null;
+    (viewMode === 'spreadsheet' && currentSpreadsheet) ? 'spreadsheet' :
+      (viewMode === 'ppt' && currentPPT) ? 'ppt' :
+        (viewMode === 'pdf' && currentPDF) ? 'pdf' :
+          (viewMode === 'doc' && currentDoc) ? 'doc' :
+            currentSpreadsheet ? 'spreadsheet' :
+              currentPPT ? 'ppt' :
+                currentPDF ? 'pdf' :
+                  currentDoc ? 'doc' :
+                    null;
 
   const isExpandedView = isRightSidebarOpen && (
+    (activeViewer === 'spreadsheet' && isSpreadsheetLargeView) ||
     (activeViewer === 'ppt' && isPPTLargeView) ||
     (activeViewer === 'pdf' && isPDFLargeView) ||
     (activeViewer === 'doc' && isDocLargeView)
@@ -1348,6 +1362,7 @@ export default function Agents() {
                           isLoading={showTyping}
                           isStreaming={isStreamingMessage}
                           messageId={message.id}
+                          onSpreadsheetOpen={handleSpreadsheetOpen}
                         />
                       </div>
                     </div>
@@ -1581,6 +1596,31 @@ export default function Agents() {
             </div>
           </div>
         </div>
+        {/* Added streaming response display when the active message matches streaming UI */}
+        {isStreaming && (
+          <div className="absolute bottom-[100px] left-0 right-0 px-4 pointer-events-none mb-12">
+            <div className="max-w-[4xl] mx-auto opacity-70">
+              <div className="flex items-start gap-3 mt-4">
+                <Avatar className={cn("h-8 w-8 flex-shrink-0", aiAgents[currentAgentKey]?.color)}>
+                  <AvatarFallback className={cn(aiAgents[currentAgentKey]?.color, "text-white")}>
+                    <FontAwesomeIcon icon={faFreebsd} className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col flex-1 max-w-[85%]">
+                  <ChatBubble
+                    content={isStreaming ? streamedContent : "Processing..."}
+                    role="assistant"
+                    name={aiAgents[currentAgentKey]?.name || "Strategic Assistant"}
+                    tool_calls={streamedToolCalls}
+                    showToolPanel={true}
+                    isStreaming={true}
+                    onSpreadsheetOpen={handleSpreadsheetOpen}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Sidebar - Context */}
@@ -1597,9 +1637,9 @@ export default function Agents() {
         <div className="flex items-center justify-between p-4 border-b border-border/50 h-[60px] min-w-[300px]">
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-lg">
-              {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : viewMode === 'doc' ? "Document" : "Context"}
+              {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : viewMode === 'doc' ? "Document" : viewMode === 'spreadsheet' ? "Spreadsheet" : "Context"}
             </h2>
-            {(currentPPT || currentPDF || currentDoc) && (
+            {(currentPPT || currentPDF || currentDoc || currentSpreadsheet) && (
               <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
                 {currentPPT && (
                   <Button
@@ -1612,7 +1652,7 @@ export default function Agents() {
                     PPT
                   </Button>
                 )}
-                {currentPPT && (currentPDF || currentDoc) && <div className="w-[1px] h-3 bg-border mx-1" />}
+                {currentPPT && (currentPDF || currentDoc || currentSpreadsheet) && <div className="w-[1px] h-3 bg-border mx-1" />}
                 {currentPDF && (
                   <Button
                     variant={viewMode === 'pdf' ? "secondary" : "ghost"}
@@ -1624,7 +1664,7 @@ export default function Agents() {
                     PDF
                   </Button>
                 )}
-                {(currentPPT || currentPDF) && currentDoc && <div className="w-[1px] h-3 bg-border mx-1" />}
+                {(currentPPT || currentPDF) && (currentDoc || currentSpreadsheet) && <div className="w-[1px] h-3 bg-border mx-1" />}
                 {currentDoc && (
                   <Button
                     variant={viewMode === 'doc' ? "secondary" : "ghost"}
@@ -1634,6 +1674,18 @@ export default function Agents() {
                   >
                     <FileText className="h-3 w-3 text-blue-500" />
                     Doc
+                  </Button>
+                )}
+                {(currentPPT || currentPDF || currentDoc) && currentSpreadsheet && <div className="w-[1px] h-3 bg-border mx-1" />}
+                {currentSpreadsheet && (
+                  <Button
+                    variant={viewMode === 'spreadsheet' ? "secondary" : "ghost"}
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() => setViewMode('spreadsheet')}
+                  >
+                    <BarChart3 className="h-3 w-3 text-emerald-500" />
+                    Sheet
                   </Button>
                 )}
               </div>
@@ -1646,10 +1698,11 @@ export default function Agents() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : viewMode === 'pdf' ? activePDFIndex === 0 : activeDocIndex === 0}
+                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : viewMode === 'pdf' ? activePDFIndex === 0 : viewMode === 'spreadsheet' ? 0 : activeDocIndex === 0}
                   onClick={() => {
                     if (viewMode === 'ppt') setActivePPTIndex(prev => Math.max(0, prev - 1));
                     else if (viewMode === 'pdf') setActivePDFIndex(prev => Math.max(0, prev - 1));
+                    else if (viewMode === 'spreadsheet') return;
                     else setActiveDocIndex(prev => Math.max(0, prev - 1));
                   }}
                 >
@@ -1690,7 +1743,13 @@ export default function Agents() {
         </div>
 
         <div className="flex-1 relative overflow-hidden">
-          {viewMode === 'ppt' && currentPPT ? (
+          {viewMode === 'spreadsheet' && currentSpreadsheet ? (
+            <SpreadsheetViewer
+              spreadsheet={currentSpreadsheet}
+              isLargeView={isSpreadsheetLargeView}
+              onToggleLargeView={() => setIsSpreadsheetLargeView(!isSpreadsheetLargeView)}
+            />
+          ) : viewMode === 'ppt' && currentPPT ? (
             <PPTViewer
               ppt={currentPPT}
               isLargeView={isPPTLargeView}
@@ -1707,6 +1766,12 @@ export default function Agents() {
               doc={currentDoc}
               isLargeView={isDocLargeView}
               onToggleLargeView={() => setIsDocLargeView(!isDocLargeView)}
+            />
+          ) : currentSpreadsheet ? (
+            <SpreadsheetViewer
+              spreadsheet={currentSpreadsheet}
+              isLargeView={isSpreadsheetLargeView}
+              onToggleLargeView={() => setIsSpreadsheetLargeView(!isSpreadsheetLargeView)}
             />
           ) : currentPPT ? (
             <PPTViewer
