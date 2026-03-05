@@ -67,7 +67,7 @@ export class ApiClient {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
-  
+
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
   }
@@ -152,7 +152,7 @@ export class ApiClient {
 
     const body = payload instanceof FormData ? payload : JSON.stringify(payload);
     if (!(payload instanceof FormData)) {
-        headers["Content-Type"] = "application/json";
+      headers["Content-Type"] = "application/json";
     }
 
     const resp = await fetch(url, { method: "POST", headers, body });
@@ -256,6 +256,8 @@ export type StreamDelta = {
   response?: string;
   tool_calls?: unknown[];
   citations?: unknown[];
+  message_id?: string;
+  id?: string;
 };
 
 export type DashboardResponse = {

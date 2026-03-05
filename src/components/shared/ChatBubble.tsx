@@ -3,6 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { downloadPDF, downloadDOCX } from "@/lib/downloadMessage";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sparkles, Code, ChevronDown, ChevronUp, Brain, Search, Globe, Activity, CheckCircle2, Loader2, Info, FileText, Database, Server, Presentation, Copy, Download, ThumbsUp, Check, Bot } from "lucide-react";
 import {
@@ -40,6 +42,8 @@ interface ChatBubbleProps {
   tool_calls?: ToolCall[];
   showToolPanel?: boolean;
   isLoading?: boolean;
+  isStreaming?: boolean;
+  messageId?: string | number;
   attachments?: (File | { name: string; size: number })[];
 }
 
@@ -375,29 +379,55 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   );
 }
 
-export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, attachments }: ChatBubbleProps) => {
+export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, isStreaming, messageId, attachments }: ChatBubbleProps) => {
   const isUser = role === "user";
   const [isCopied, setIsCopied] = useState(false);
+  const [isThumbedUp, setIsThumbedUp] = useState(false);
 
   const handleCopy = () => {
     if (!content) return;
-    navigator.clipboard.writeText(content);
+    const textToCopy = content.replace(/(?:\n|^):::tool_call:[^:]+:::(?:\n|$)/g, '\n').trim();
+    navigator.clipboard.writeText(textToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const handleThumbsUp = () => {
-    // Placeholder for thumbs up action
-    console.log("Thumbs up clicked");
+  const handleThumbsUp = async () => {
+    if (!messageId || isThumbedUp) return;
+    console.log("[ThumbsUp] Sending message_id:", messageId);
+    try {
+      await api.fetch('/api/v1/knowledge/from-message', {
+        method: 'POST',
+        body: JSON.stringify({
+          message_id: String(messageId),
+          title: "Saved Message",
+          summary: content ? content.substring(0, 50) + "..." : "Saved from chat",
+          tags: [],
+          category: "General"
+        })
+      });
+      setIsThumbedUp(true);
+      toast.success("Saved to knowledge base");
+    } catch (err: any) {
+      const errorMsg = err.message || "";
+      if (errorMsg.includes("already been added")) {
+        setIsThumbedUp(true);
+        toast.info("Already added to knowledge base");
+      } else {
+        console.error("Failed to save memory from message", err);
+        toast.error("Failed to save memory");
+      }
+    }
   };
 
   const handleDownload = (format: 'pdf' | 'docx') => {
     if (!content) return;
+    const cleanContent = content.replace(/(?:\n|^):::tool_call:[^:]+:::(?:\n|$)/g, '\n').trim();
     const filename = `message_${new Date().toISOString().slice(0, 10)}`;
     if (format === 'pdf') {
-      downloadPDF(content, filename);
+      downloadPDF(cleanContent, filename);
     } else {
-      downloadDOCX(content, filename);
+      downloadDOCX(cleanContent, filename);
     }
   };
 
@@ -625,7 +655,7 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
               <TypingDots />
             ) : null}
 
-            {!isUser && !isLoading && (
+            {!isUser && !isLoading && !isStreaming && (
               <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -660,7 +690,7 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
                   className="h-6 w-6 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
                   onClick={handleThumbsUp}
                 >
-                  <ThumbsUp className="h-3.5 w-3.5" />
+                  <ThumbsUp className={cn("h-3.5 w-3.5", isThumbedUp && "text-blue-500 fill-blue-500")} />
                 </Button>
               </div>
             )}

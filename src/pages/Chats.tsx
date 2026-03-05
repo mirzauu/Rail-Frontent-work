@@ -18,7 +18,7 @@ const chats = [
 ];
 
 interface Message {
-  id: number;
+  id: string | number;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
@@ -206,6 +206,7 @@ export default function Chats() {
                     {messages.map((msg, index) => {
                       const isLast = index === messages.length - 1;
                       const showTyping = isStreaming && isLast && msg.role === "assistant" && (msg.content || "").trim().length === 0;
+                      const isStreamingMessage = isStreaming && isLast && msg.role === "assistant";
                       return (
                         <ChatBubble
                           key={msg.id}
@@ -214,7 +215,9 @@ export default function Chats() {
                           timestamp={msg.timestamp}
                           name={msg.role === "assistant" ? selectedChat?.name : "You"}
                           isLoading={showTyping}
+                          isStreaming={isStreamingMessage}
                           attachments={msg.attachments}
+                          messageId={msg.id}
                         />
                       );
                     })}

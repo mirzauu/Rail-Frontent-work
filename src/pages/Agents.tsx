@@ -129,7 +129,7 @@ interface ReasoningStep {
 
 // Message type with reasoning
 interface Message {
-  id: number;
+  id: string | number;
   type: string;
   agent?: string;
   content: string;
@@ -140,10 +140,13 @@ interface Message {
 }
 
 interface HistoryMessage {
+  id?: string;
+  message_id?: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
   attachments?: any[];
+  tool_calls?: ToolCall[];
 }
 
 // Agent-specific conversations with reasoning
@@ -692,10 +695,11 @@ export default function Agents() {
           }
 
           return {
-            id: Date.now() + idx,
+            id: m.id || m.message_id || `hist-${Date.now()}-${idx}`,
             type: isUserMsg ? "user" : "agent",
             agent: role === "assistant" ? currentAgentKey : undefined,
             content: m.content || "",
+            tool_calls: m.tool_calls,
             time: m.created_at ? new Date(m.created_at).toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
@@ -896,7 +900,13 @@ export default function Agents() {
             });
           }
 
-          return { ...m, content: newContent, tool_calls: newToolCalls };
+          // Capture real message ID from stream if available
+          const realId = chunk.message_id || chunk.id;
+          const updatedMessage = { ...m, content: newContent, tool_calls: newToolCalls };
+          if (realId) {
+            updatedMessage.id = realId;
+          }
+          return updatedMessage;
         }));
       });
       if (isNewChat) {
@@ -1113,7 +1123,7 @@ export default function Agents() {
                       }
                       const arr = Array.isArray(d?.messages) ? d.messages : [];
                       const conv = arr.map((m: HistoryMessage, idx: number) => ({
-                        id: Date.now() + idx,
+                        id: m.id || m.message_id || (m as any).msg_id || `hist-${Date.now()}-${idx}`,
                         type: m.role === "user" ? "user" : "agent",
                         agent: m.role === "assistant" ? currentAgentKey : undefined,
                         content: m.content,
@@ -1238,6 +1248,7 @@ export default function Agents() {
                       timestamp={message.time}
                       name="You"
                       attachments={message.attachments}
+                      messageId={message.id}
                     />
                   );
                 } else {
@@ -1245,6 +1256,7 @@ export default function Agents() {
                   const isReasoningExpanded = expandedReasonings[message.id] ?? false;
                   const isLast = index === displayMessages.length - 1;
                   const showTyping = isStreaming && isLast && (message.content || "").trim().length === 0;
+                  const isStreamingMessage = isStreaming && isLast;
 
                   if (!agent) return null;
 
@@ -1334,6 +1346,8 @@ export default function Agents() {
                           name={agent.name}
                           tool_calls={message.tool_calls}
                           isLoading={showTyping}
+                          isStreaming={isStreamingMessage}
+                          messageId={message.id}
                         />
                       </div>
                     </div>

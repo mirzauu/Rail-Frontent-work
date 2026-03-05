@@ -17,6 +17,28 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Network, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { useEffect } from "react";
+
+interface KnowledgeItem {
+  id: string;
+  org_id: string;
+  title: string;
+  content: string;
+  summary: string;
+  tags: string[];
+  category: string;
+  source_type: string;
+  source_message_id?: string;
+  source_conversation_id?: string;
+  status: string;
+  vector_id: string | null;
+  is_verified: boolean;
+  priority: number;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
 
 const memories = [
   { id: 1, title: "APAC Expansion Decision", summary: "Strategic decision to expand operations into APAC market with Japan as primary entry point", agent: "Michael", type: "decision", confidence: 95, source: "chat", created: "2 hours ago" },
@@ -33,25 +55,45 @@ const globalMemories = [
   { id: 3, title: "Culture Values Update", scope: "HR", summary: "Updated company values emphasizing innovation and customer focus", created: "1 month ago" },
 ];
 
-const typeColors = {
-  decision: "bg-primary/10 text-primary",
-  risk: "bg-destructive/10 text-destructive",
-  insight: "bg-success/10 text-success",
-  task: "bg-warning/10 text-warning",
+const categoryColors: Record<string, string> = {
+  General: "bg-primary/10 text-primary",
+  Risk: "bg-destructive/10 text-destructive",
+  Insight: "bg-success/10 text-success",
+  Task: "bg-warning/10 text-warning",
 };
 
 export default function Memory() {
   const [activeTab, setActiveTab] = useState("per-agent");
   const [viewMode, setViewMode] = useState<"list" | "graph">("graph");
-  const [selectedMemory, setSelectedMemory] = useState<typeof memories[0] | null>(null);
-  const [agentFilter, setAgentFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedMemory, setSelectedMemory] = useState<KnowledgeItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const filteredMemories = memories.filter((m) => {
-    if (agentFilter !== "all" && m.agent !== agentFilter) return false;
-    if (typeFilter !== "all" && m.type !== typeFilter) return false;
-    return true;
+  useEffect(() => {
+    const fetchKnowledge = async () => {
+      try {
+        setIsLoading(true);
+        const resp = await api.fetch("api/v1/knowledge/?limit=50&offset=0");
+        const data = await resp.json();
+        setKnowledgeItems(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to fetch knowledge:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchKnowledge();
+  }, []);
+
+  const filteredMemories = knowledgeItems.filter((m) => {
+    const matchesSearch = (m.title + m.summary + m.content).toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || m.category === categoryFilter;
+    return matchesSearch && matchesCategory;
   });
+
+  const categories = Array.from(new Set(knowledgeItems.map(m => m.category))).filter(Boolean);
 
   return (
     <div className="animate-fade-in">
@@ -85,31 +127,22 @@ export default function Memory() {
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="relative flex-1 min-w-[200px] max-w-sm">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search memories..." className="pl-9" />
+                    <Input
+                      placeholder="Search memories..."
+                      className="pl-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
-                  <Select value={agentFilter} onValueChange={setAgentFilter}>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                     <SelectTrigger className="w-40">
-                      <SelectValue placeholder="All Agents" />
+                      <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Agents</SelectItem>
-                      <SelectItem value="Michael">Michael</SelectItem>
-                      <SelectItem value="Raphael">Raphael</SelectItem>
-                      <SelectItem value="Mary">Mary</SelectItem>
-                      <SelectItem value="Gabriel">Gabriel</SelectItem>
-                      <SelectItem value="Emily">Emily</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={typeFilter} onValueChange={setTypeFilter}>
-                    <SelectTrigger className="w-36">
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="decision">Decision</SelectItem>
-                      <SelectItem value="risk">Risk</SelectItem>
-                      <SelectItem value="insight">Insight</SelectItem>
-                      <SelectItem value="task">Task</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {categories.map(cat => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <Button variant="outline" size="icon">
@@ -125,59 +158,59 @@ export default function Memory() {
                       <thead>
                         <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
                           <th className="p-4">Title / Summary</th>
-                          <th className="p-4">Agent</th>
-                          <th className="p-4">Type</th>
+                          <th className="p-4">Category</th>
                           <th className="p-4">Source</th>
-                          <th className="p-4">Confidence</th>
+                          <th className="p-4">Status</th>
                           <th className="p-4 text-right">Created</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredMemories.map((memory) => (
+                        {isLoading ? (
+                          <tr>
+                            <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                              Loading knowledge base...
+                            </td>
+                          </tr>
+                        ) : filteredMemories.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                              No memories found.
+                            </td>
+                          </tr>
+                        ) : filteredMemories.map((memory) => (
                           <tr
                             key={memory.id}
                             onClick={() => setSelectedMemory(memory)}
                             className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
                           >
-                            <td className="p-4 max-w-sm">
+                            <td className="p-4 max-w-md">
                               <div className="font-medium text-foreground">{memory.title}</div>
-                              <div className="text-sm text-muted-foreground truncate mt-0.5">
+                              <div className="text-sm text-muted-foreground truncate mt-0.5" title={memory.summary}>
                                 {memory.summary}
                               </div>
-                            </td>
-                            <td className="p-4">
-                              <Badge variant="outline">{memory.agent}</Badge>
                             </td>
                             <td className="p-4">
                               <span
                                 className={cn(
                                   "inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                                  typeColors[memory.type as keyof typeof typeColors]
+                                  categoryColors[memory.category] || "bg-muted text-muted-foreground"
                                 )}
                               >
-                                {memory.type}
+                                {memory.category}
                               </span>
                             </td>
                             <td className="p-4 text-sm text-muted-foreground capitalize">
-                              {memory.source}
+                              {memory.source_type}
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                                  <div
-                                    className="h-full bg-primary rounded-full"
-                                    style={{ width: `${memory.confidence}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {memory.confidence}%
-                                </span>
-                              </div>
+                              <Badge variant={memory.status === 'active' ? 'outline' : 'secondary'} className="capitalize">
+                                {memory.status}
+                              </Badge>
                             </td>
                             <td className="p-4 text-right text-sm text-muted-foreground">
                               <div className="flex items-center justify-end gap-1">
                                 <Clock className="h-3 w-3" />
-                                {memory.created}
+                                {new Date(memory.created_at).toLocaleDateString()}
                               </div>
                             </td>
                           </tr>
@@ -238,46 +271,40 @@ export default function Memory() {
         isOpen={!!selectedMemory}
         onClose={() => setSelectedMemory(null)}
         title={selectedMemory?.title || ""}
-        subtitle={`Memory from ${selectedMemory?.agent} Agent`}
+        subtitle={`Knowledge Base Entry`}
       >
         {selectedMemory && (
           <div className="space-y-5">
             <div>
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Summary
+                Content
               </h4>
-              <p className="text-sm text-foreground leading-relaxed">
-                {selectedMemory.summary}
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {selectedMemory.content}
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                  Type
+                  Category
                 </h4>
                 <span
                   className={cn(
                     "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
-                    typeColors[selectedMemory.type as keyof typeof typeColors]
+                    categoryColors[selectedMemory.category] || "bg-muted text-muted-foreground"
                   )}
                 >
-                  {selectedMemory.type}
+                  {selectedMemory.category}
                 </span>
               </div>
               <div>
                 <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                  Confidence
+                  Status
                 </h4>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-20 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${selectedMemory.confidence}%` }}
-                    />
-                  </div>
-                  <span className="text-sm font-medium">{selectedMemory.confidence}%</span>
-                </div>
+                <Badge variant={selectedMemory.status === 'active' ? 'outline' : 'secondary'} className="capitalize">
+                  {selectedMemory.status}
+                </Badge>
               </div>
             </div>
 
@@ -286,7 +313,7 @@ export default function Memory() {
                 Source
               </h4>
               <p className="text-sm text-muted-foreground capitalize">
-                {selectedMemory.source} • {selectedMemory.created}
+                {selectedMemory.source_type} • {new Date(selectedMemory.created_at).toLocaleString()}
               </p>
             </div>
 
@@ -295,14 +322,16 @@ export default function Memory() {
                 Tags
               </h4>
               <div className="flex flex-wrap gap-2">
-                {["Strategy", "Q4", selectedMemory.agent].map((tag) => (
+                {selectedMemory.tags && selectedMemory.tags.length > 0 ? selectedMemory.tags.map((tag) => (
                   <span
                     key={tag}
                     className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground"
                   >
                     {tag}
                   </span>
-                ))}
+                )) : (
+                  <span className="text-xs text-muted-foreground italic">No tags</span>
+                )}
               </div>
             </div>
 
