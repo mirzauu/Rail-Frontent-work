@@ -46,8 +46,8 @@ const memoryItems = [
 ];
 
 const managementItems = [
-  { icon: MessageSquare, label: "Users", path: "/users" },
-  { icon: Users, label: "Integrations", path: "/integrations" },
+  { icon: Users, label: "Users", path: "/users" },
+  { icon: MessageSquare, label: "Integrations", path: "/integrations" },
 ];
 
 export function Sidebar() {

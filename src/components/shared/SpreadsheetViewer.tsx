@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import { BarChart3, Download, Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -79,24 +78,32 @@ export function SpreadsheetViewer({ spreadsheet, isLargeView = false, onToggleLa
         const a = document.createElement("a");
         a.href = spreadsheet.url;
         a.download = spreadsheet.title;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
+        a.style.display = "none";
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
     };
 
     const { headers, rows } = sheetData ?? { headers: [], rows: [] };
 
     return (
-        <div className="flex flex-col h-full bg-background overflow-hidden relative">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/50 backdrop-blur-sm flex-shrink-0 z-10 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-inner">
-                        <BarChart3 className="h-5 w-5 text-emerald-600" />
+        // Key: overflow-hidden on the outer wrapper keeps everything inside the sidebar bounds
+        // The header and tabs are flex-shrink-0 so they never get squeezed away
+        // Only the table area scrolls (both axes) via overflow: auto on a native div
+        <div className="flex flex-col h-full w-full bg-background" style={{ minHeight: 0 }}>
+
+            {/* ── Header ── always visible, never affected by table width */}
+            <div
+                className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-background flex-shrink-0 z-20 shadow-sm"
+                style={{ minWidth: 0 }}
+            >
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 flex-shrink-0">
+                        <BarChart3 className="h-4 w-4 text-emerald-600" />
                     </div>
-                    <div>
-                        <h3 className="text-sm font-bold truncate max-w-[220px] text-foreground">{spreadsheet.title}</h3>
-                        <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                        <h3 className="text-sm font-bold truncate text-foreground">{spreadsheet.title}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono uppercase font-bold tracking-tighter">
                                 Spreadsheet
                             </span>
@@ -108,7 +115,8 @@ export function SpreadsheetViewer({ spreadsheet, isLargeView = false, onToggleLa
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                {/* Buttons always on the right – flex-shrink-0 prevents them from disappearing */}
+                <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                     <Button
                         variant="ghost"
                         size="icon"
@@ -118,19 +126,20 @@ export function SpreadsheetViewer({ spreadsheet, isLargeView = false, onToggleLa
                     >
                         <Download className="h-4 w-4" />
                     </Button>
-                    <Separator orientation="vertical" className="h-4 mx-1" />
+                    <Separator orientation="vertical" className="h-4" />
                     <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-lg"
                         onClick={onToggleLargeView}
+                        title={isLargeView ? "Exit full view" : "Full view"}
                     >
                         {isLargeView ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                     </Button>
                 </div>
             </div>
 
-            {/* Sheet Tabs */}
+            {/* ── Sheet Tabs ── flex-shrink-0, own horizontal scroll */}
             {allSheets.length > 1 && (
                 <div className="flex gap-1 px-4 pt-2 border-b border-border/40 flex-shrink-0 overflow-x-auto">
                     {allSheets.map((s, i) => (
@@ -150,8 +159,8 @@ export function SpreadsheetViewer({ spreadsheet, isLargeView = false, onToggleLa
                 </div>
             )}
 
-            {/* Content */}
-            <div className="flex-1 relative overflow-hidden">
+            {/* ── Content area ── takes remaining height, scrolls both axes */}
+            <div className="flex-1 relative" style={{ minHeight: 0, overflow: "hidden" }}>
                 {isLoading && (
                     <div className="absolute inset-0 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -175,50 +184,53 @@ export function SpreadsheetViewer({ spreadsheet, isLargeView = false, onToggleLa
                 )}
 
                 {!isLoading && !error && sheetData && (
-                    <ScrollArea className="h-full w-full">
-                        <div className="min-w-max p-2">
-                            <table className="text-[12px] border-collapse w-full">
-                                <thead>
-                                    <tr>
-                                        {/* Row number col */}
-                                        <th className="sticky left-0 z-10 bg-muted/60 border border-border/50 px-2 py-1.5 text-[10px] text-muted-foreground font-mono w-8 min-w-[2rem] text-right select-none" />
-                                        {headers.map((h, i) => (
-                                            <th
-                                                key={i}
-                                                className="bg-muted/60 border border-border/50 px-3 py-2 text-left font-semibold text-foreground/80 whitespace-nowrap"
+                    // Native scroll container — handles BOTH horizontal and vertical overflow
+                    <div
+                        className="absolute inset-0 overflow-auto"
+                        style={{ WebkitOverflowScrolling: "touch" }}
+                    >
+                        <table className="text-[12px] border-collapse" style={{ minWidth: "100%" }}>
+                            <thead className="sticky top-0 z-10">
+                                <tr>
+                                    {/* Row number col */}
+                                    <th className="bg-muted/80 border border-border/50 px-2 py-2 text-[10px] text-muted-foreground font-mono w-8 min-w-[2rem] text-right select-none sticky left-0 z-20" />
+                                    {headers.map((h, i) => (
+                                        <th
+                                            key={i}
+                                            className="bg-muted/80 border border-border/50 px-3 py-2 text-left font-semibold text-foreground/80 whitespace-nowrap text-[11px]"
+                                        >
+                                            {h || <span className="text-muted-foreground italic text-[10px]">Column {i + 1}</span>}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows.map((row, ri) => (
+                                    <tr key={ri} className={cn("group", ri % 2 === 0 ? "bg-background" : "bg-muted/10")}>
+                                        <td className="sticky left-0 z-10 bg-muted/40 group-hover:bg-emerald-500/5 border border-border/40 px-2 py-1.5 text-[10px] text-muted-foreground font-mono text-right select-none">
+                                            {ri + 1}
+                                        </td>
+                                        {row.map((cell, ci) => (
+                                            <td
+                                                key={ci}
+                                                className="border border-border/40 px-3 py-1.5 text-foreground/80 whitespace-nowrap group-hover:bg-emerald-500/5"
+                                                style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis" }}
                                             >
-                                                {h || <span className="text-muted-foreground italic text-[10px]">Column {i + 1}</span>}
-                                            </th>
+                                                {cell}
+                                            </td>
                                         ))}
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row, ri) => (
-                                        <tr key={ri} className={cn("group", ri % 2 === 0 ? "bg-background" : "bg-muted/20")}>
-                                            <td className="sticky left-0 z-10 bg-muted/40 border border-border/40 px-2 py-1.5 text-[10px] text-muted-foreground font-mono text-right select-none group-hover:bg-emerald-500/5">
-                                                {ri + 1}
-                                            </td>
-                                            {row.map((cell, ci) => (
-                                                <td
-                                                    key={ci}
-                                                    className="border border-border/40 px-3 py-1.5 text-foreground/80 whitespace-nowrap max-w-[300px] overflow-hidden text-ellipsis group-hover:bg-emerald-500/5"
-                                                >
-                                                    {cell}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                    {rows.length === 0 && (
-                                        <tr>
-                                            <td colSpan={headers.length + 1} className="py-12 text-center text-muted-foreground text-sm border border-border/40">
-                                                No data rows found
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </ScrollArea>
+                                ))}
+                                {rows.length === 0 && (
+                                    <tr>
+                                        <td colSpan={headers.length + 1} className="py-12 text-center text-muted-foreground text-sm border border-border/40">
+                                            No data rows found
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

@@ -930,6 +930,7 @@ export default function Agents() {
     if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
   };
 
+  // Handle key press (Enter to send)
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputMessage.trim()) {
       handleSendMessage();
@@ -1596,41 +1597,16 @@ export default function Agents() {
             </div>
           </div>
         </div>
-        {/* Added streaming response display when the active message matches streaming UI */}
-        {isStreaming && (
-          <div className="absolute bottom-[100px] left-0 right-0 px-4 pointer-events-none mb-12">
-            <div className="max-w-[4xl] mx-auto opacity-70">
-              <div className="flex items-start gap-3 mt-4">
-                <Avatar className={cn("h-8 w-8 flex-shrink-0", aiAgents[currentAgentKey]?.color)}>
-                  <AvatarFallback className={cn(aiAgents[currentAgentKey]?.color, "text-white")}>
-                    <FontAwesomeIcon icon={faFreebsd} className="h-5 w-5" />
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col flex-1 max-w-[85%]">
-                  <ChatBubble
-                    content={isStreaming ? streamedContent : "Processing..."}
-                    role="assistant"
-                    name={aiAgents[currentAgentKey]?.name || "Strategic Assistant"}
-                    tool_calls={streamedToolCalls}
-                    showToolPanel={true}
-                    isStreaming={true}
-                    onSpreadsheetOpen={handleSpreadsheetOpen}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Right Sidebar - Context */}
       <div
         className={cn(
-          "flex flex-col border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
+          "flex flex-col h-full min-h-0 border-border bg-[#f8fafc] dark:bg-card/30 transition-all duration-300 ease-in-out",
           isRightSidebarOpen
             ? isExpandedView
               ? "flex-1 border-l"
-              : (currentPPT || currentPDF || currentDoc) ? "w-[400px] lg:w-[500px] flex-shrink-0 border-l" : "w-[300px] lg:w-[350px] flex-shrink-0 border-l"
+              : (currentPPT || currentPDF || currentDoc || currentSpreadsheet) ? "w-[400px] lg:w-[600px] flex-shrink-0 border-l" : "w-[300px] lg:w-[400px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}
       >
@@ -1742,7 +1718,7 @@ export default function Agents() {
           </Button>
         </div>
 
-        <div className="flex-1 relative overflow-hidden">
+        <div className="flex-1 relative overflow-hidden min-h-0">
           {viewMode === 'spreadsheet' && currentSpreadsheet ? (
             <SpreadsheetViewer
               spreadsheet={currentSpreadsheet}

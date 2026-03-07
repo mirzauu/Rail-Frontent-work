@@ -427,19 +427,19 @@ export default function Dashboard() {
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Region</p>
                             <div className="flex items-center gap-2 text-sm font-medium">
                               <FontAwesomeIcon icon={faBuilding} className="text-slate-400 h-3 w-3" />
-                              {partner.geography.regions || "Global"}
+                              {partner.geography?.regions || "Global"}
                             </div>
                           </div>
                           <div>
                             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Coverage</p>
                             <div className="flex items-center gap-2 text-sm font-medium">
                               <div className="h-2 w-2 rounded-full bg-emerald-500"></div>
-                              {partner.geography.num_countries} Countries
+                              {partner.geography?.num_countries || 0} Countries
                             </div>
                           </div>
                         </div>
 
-                        {partner.geography.notes && (
+                        {partner.geography?.notes && (
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                             <p className="text-xs text-slate-400 italic mt-2">
                               "{partner.geography.notes}"
