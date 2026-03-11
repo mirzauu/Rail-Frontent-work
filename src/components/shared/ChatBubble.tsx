@@ -17,45 +17,74 @@ import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 
 // Context that lets MarkdownLink cards call the parent's open-panel handler
-const SpreadsheetOpenContext = createContext<((url: string, name: string) => void) | null>(null);
+export type DocumentFileType = 'spreadsheet' | 'pdf' | 'doc' | 'ppt';
+const DocumentOpenContext = createContext<((url: string, name: string, type: DocumentFileType) => void) | null>(null);
 
 const MarkdownLink = ({ children, href }: { children: React.ReactNode; href?: string }) => {
-  const openSpreadsheet = useContext(SpreadsheetOpenContext);
+  const openDocument = useContext(DocumentOpenContext);
 
-  if (href && (href.toLowerCase().endsWith('.csv') || href.toLowerCase().endsWith('.xlsx'))) {
-    let displayName = children?.toString() || 'Data File';
-    if (displayName === href) {
-      displayName = href.split('/').pop() || 'Data File';
-    }
+  if (href) {
+    const lowerHref = href.toLowerCase();
+    let docType: DocumentFileType | null = null;
 
-    const handleClick = (e: React.MouseEvent) => {
-      if (openSpreadsheet) {
-        e.preventDefault();
-        openSpreadsheet(href, displayName);
+    if (lowerHref.endsWith('.csv') || lowerHref.endsWith('.xlsx')) docType = 'spreadsheet';
+    else if (lowerHref.endsWith('.pdf')) docType = 'pdf';
+    else if (lowerHref.endsWith('.doc') || lowerHref.endsWith('.docx')) docType = 'doc';
+    else if (lowerHref.endsWith('.ppt') || lowerHref.endsWith('.pptx')) docType = 'ppt';
+
+    if (docType) {
+      let displayName = children?.toString() || 'Data File';
+      if (displayName === href) {
+        displayName = href.split('/').pop() || 'Data File';
       }
-      // else fall through to normal download
-    };
 
-    return (
-      <a
-        href={href}
-        download={!openSpreadsheet}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="no-underline block my-5 outline-none w-fit"
-        onClick={handleClick}
-      >
-        <div className="flex items-center p-3 pr-10 rounded-xl border border-border/50 bg-card/60 hover:bg-accent/60 transition-colors gap-4 shadow-sm">
-          <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-300 flex items-center justify-center flex-shrink-0">
-            <BarChart3 className="h-5 w-5 text-slate-800" />
+      const handleClick = (e: React.MouseEvent) => {
+        if (openDocument) {
+          e.preventDefault();
+          openDocument(href, displayName, docType!);
+        }
+        // else fall through to normal download
+      };
+
+      const getIcon = () => {
+        switch (docType) {
+          case 'pdf': return <FileText className="h-5 w-5 text-red-600" />;
+          case 'doc': return <FileText className="h-5 w-5 text-blue-600" />;
+          case 'ppt': return <Presentation className="h-5 w-5 text-orange-600" />;
+          default: return <BarChart3 className="h-5 w-5 text-emerald-600" />;
+        }
+      };
+
+      const getLabel = () => {
+        switch (docType) {
+          case 'pdf': return 'PDF Document';
+          case 'doc': return 'Word Document';
+          case 'ppt': return 'Presentation';
+          default: return 'Spreadsheet';
+        }
+      };
+
+      return (
+        <a
+          href={href}
+          download={!openDocument}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="no-underline block my-5 outline-none w-fit"
+          onClick={handleClick}
+        >
+          <div className="flex items-center p-3 pr-10 rounded-xl border border-border/50 bg-card/60 hover:bg-accent/60 transition-colors gap-4 shadow-sm">
+            <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 bg-muted/60`}>
+              {getIcon()}
+            </div>
+            <div className="flex flex-col overflow-hidden">
+              <span className="font-medium text-[14px] text-foreground truncate">{displayName}</span>
+              <span className="text-[12px] text-muted-foreground mt-0.5">{getLabel()}</span>
+            </div>
           </div>
-          <div className="flex flex-col overflow-hidden">
-            <span className="font-medium text-[14px] text-foreground truncate">{displayName}</span>
-            <span className="text-[12px] text-muted-foreground mt-0.5">Spreadsheet</span>
-          </div>
-        </div>
-      </a>
-    );
+        </a>
+      );
+    }
   }
 
   return (
@@ -94,7 +123,7 @@ interface ChatBubbleProps {
   isStreaming?: boolean;
   messageId?: string | number;
   attachments?: (File | { name: string; size: number })[];
-  onSpreadsheetOpen?: (url: string, name: string) => void;
+  onDocumentOpen?: (url: string, name: string, type: DocumentFileType) => void;
 }
 
 const TypingDots = () => {
@@ -117,6 +146,9 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const isDoc = toolName.includes("word") || toolName.includes("doc");
   const isConsultAgent = toolName.startsWith("consult_") || toolName.startsWith("consultant_");
   const isCallEvent = toolCall.event_type === "ToolCallEventType.CALL";
+
+  // Hide PPT, PDF, and DOC tool calls from chat display
+  if (isPPT || isPDF || isDoc) return null;
   const isCompleted = !isCallEvent && (toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response);
 
   const [isOpen, setIsOpen] = useState(!isCompleted);
@@ -429,7 +461,7 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   );
 }
 
-export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, isStreaming, messageId, attachments, onSpreadsheetOpen }: ChatBubbleProps) => {
+export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, tool_calls, showToolPanel, isLoading, isStreaming, messageId, attachments, onDocumentOpen }: ChatBubbleProps) => {
   const isUser = role === "user";
   const [isCopied, setIsCopied] = useState(false);
   const [isThumbedUp, setIsThumbedUp] = useState(false);
@@ -548,7 +580,7 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
   }, [content, tool_calls]);
 
   return (
-    <SpreadsheetOpenContext.Provider value={onSpreadsheetOpen ?? null}>
+    <DocumentOpenContext.Provider value={onDocumentOpen ?? null}>
       <div className={cn("flex mb-6 w-full min-w-0 overflow-hidden group", isUser ? "justify-end" : "justify-start")}>
         <div className={cn("flex flex-col min-w-0 overflow-hidden", isUser ? "items-end max-w-[85%]" : "items-start max-w-full")}>
           <div className="flex items-center gap-2 mb-1 px-1">
@@ -743,6 +775,6 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
           </div>
         </div>
       </div>
-    </SpreadsheetOpenContext.Provider>
+    </DocumentOpenContext.Provider>
   );
 });

@@ -41,7 +41,10 @@ import {
   Presentation,
   ChevronLeft,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Download,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,8 @@ import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
 import { PDFViewer, type PDF } from "@/components/shared/PDFViewer";
 import { DocViewer, type Doc } from "@/components/shared/DocViewer";
 import { SpreadsheetViewer, type Spreadsheet } from "@/components/shared/SpreadsheetViewer";
+import { LocalWordExternalViewer } from "@/components/shared/LocalWordExternalViewer";
+import { LocalPptExternalViewer } from "@/components/shared/LocalPptExternalViewer";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -443,103 +448,15 @@ export default function Agents() {
   const [currentSpreadsheet, setCurrentSpreadsheet] = useState<Spreadsheet | null>(null);
   const [isSpreadsheetLargeView, setIsSpreadsheetLargeView] = useState(false);
 
+  const [currentExternalDoc, setCurrentExternalDoc] = useState<{ url: string, title: string, type: 'pdf' | 'doc' | 'ppt' } | null>(null);
+  const [isExternalDocLargeView, setIsExternalDocLargeView] = useState(false);
+
   const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc' | 'spreadsheet'>('ppt');
 
+  // PPT/PDF/DOC viewer feature disabled — no longer build documents from streaming tool_calls
   useEffect(() => {
-    let ppts: PPT[] = [];
-    let pdfs: PDF[] = [];
-    let docs: Doc[] = [];
-    let currentPpt: PPT | null = null;
-    let currentPdf: PDF | null = null;
-    let currentDoc: Doc | null = null;
-
-    messages.forEach(m => {
-      m.tool_calls?.forEach(tc => {
-        if (tc.tool_name === 'create_ppt') {
-          currentPpt = {
-            title: tc.tool_call_details?.summary?.args?.title || 'New Presentation',
-            slides: []
-          };
-          ppts.push(currentPpt);
-        } else if (tc.tool_name === 'add_slide' && currentPpt) {
-          const args = tc.tool_call_details?.summary?.args;
-          if (args) {
-            currentPpt.slides.push({
-              title: args.title || 'Untitled Slide',
-              content: args.content || '',
-              slide_type: args.slide_type || 'text'
-            });
-          }
-        }
-
-        if (tc.tool_name === 'create_pdf') {
-          currentPdf = {
-            title: tc.tool_call_details?.summary?.args?.title || 'New Strategy Brief',
-            sections: []
-          };
-          pdfs.push(currentPdf);
-        } else if (tc.tool_name === 'add_pdf_section' && currentPdf) {
-          const args = tc.tool_call_details?.summary?.args;
-          if (args) {
-            currentPdf.sections.push({
-              title: args.title || 'Untitled Section',
-              content: args.content || '',
-              section_type: args.section_type || 'text'
-            });
-          }
-        }
-
-        if (tc.tool_name === 'create_word_doc') {
-          currentDoc = {
-            title: tc.tool_call_details?.summary?.args?.title || 'New Document',
-            sections: []
-          };
-          docs.push(currentDoc);
-        } else if (tc.tool_name === 'add_word_section' && currentDoc) {
-          const args = tc.tool_call_details?.summary?.args;
-          if (args) {
-            currentDoc.sections.push({
-              title: args.title || 'Untitled Section',
-              content: args.content || '',
-              section_type: args.section_type || 'text'
-            });
-          }
-        }
-      });
-    });
-
-    if (ppts.length > 0) {
-      setAllPPTs(ppts);
-      const lastMsg = messages[messages.length - 1];
-      const hasRecentPptTool = lastMsg?.tool_calls?.some(tc => ['create_ppt', 'add_slide'].includes(tc.tool_name));
-      if (hasRecentPptTool) {
-        setActivePPTIndex(ppts.length - 1);
-        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-        setViewMode('ppt');
-      }
-    }
-
-    if (pdfs.length > 0) {
-      setAllPDFs(pdfs);
-      const lastMsg = messages[messages.length - 1];
-      const hasRecentPdfTool = lastMsg?.tool_calls?.some(tc => ['create_pdf', 'add_pdf_section'].includes(tc.tool_name));
-      if (hasRecentPdfTool) {
-        setActivePDFIndex(pdfs.length - 1);
-        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-        setViewMode('pdf');
-      }
-    }
-
-    if (docs.length > 0) {
-      setAllDocs(docs);
-      const lastMsg = messages[messages.length - 1];
-      const hasRecentDocTool = lastMsg?.tool_calls?.some(tc => ['create_word_doc', 'add_word_section'].includes(tc.tool_name));
-      if (hasRecentDocTool) {
-        setActiveDocIndex(docs.length - 1);
-        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-        setViewMode('doc');
-      }
-    }
+    // Intentionally kept empty: PPT/PDF/DOC right-panel viewers are disabled.
+    // Spreadsheet viewer is handled separately via handleSpreadsheetOpen.
   }, [messages]); // Removed auto-collapse logic that was causing flickering during history loads // Removed isRightSidebarOpen from dependencies to prevent auto-close loop on manual toggle
 
   const [expandedReasonings, setExpandedReasonings] = useState<Record<number, boolean>>({});
@@ -626,70 +543,10 @@ export default function Agents() {
         const r = await api.fetch(`api/v1/conversations/history/${firstId}`);
         const d = await r.json();
         setConversationId(d?.conversation_id ?? null);
-        if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-          setAllPPTs(d.presentations.map((p: any) => ({
-            title: p.title,
-            slides: Array.isArray(p.slides) ? p.slides.map((s: any) => ({
-              title: s.title,
-              content: s.content,
-              slide_type: s.slide_type
-            })) : []
-          })));
-          setActivePPTIndex(0);
-          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-        } else {
-          setAllPPTs([]);
-        }
-
-        try {
-          const pdflist = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs : (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
-          if (pdflist.length > 0) {
-            setAllPDFs(pdflist.map((doc: any) => ({
-              title: doc.title || "Untitled Brief",
-              sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                title: s.title || "Untitled Section",
-                content: s.content || "",
-                section_type: s.section_type || "text"
-              })) : []
-            })));
-            setActivePDFIndex(pdflist.length - 1);
-            if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-          } else {
-            setAllPDFs([]);
-          }
-        } catch (e) {
-          console.error("Failed to parse PDF history", e);
-          setAllPDFs([]);
-        }
-
-        try {
-          const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
-          if (doclist.length > 0) {
-            setAllDocs(doclist.map((doc: any) => ({
-              title: doc.title || "Untitled Document",
-              sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                title: s.title || "Untitled Section",
-                content: s.content || "",
-                section_type: s.section_type || "text"
-              })) : []
-            })));
-            setActiveDocIndex(doclist.length - 1);
-            if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-            // Use local checks for PPT/PDF existence instead of stale state
-            const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-            const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-              (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-
-            if (!hasPPT && !hasPDF) {
-              setViewMode('doc');
-            }
-          } else {
-            setAllDocs([]);
-          }
-        } catch (e) {
-          console.error("Failed to parse Word Doc history", e);
-          setAllDocs([]);
-        }
+        // PPT/PDF/DOC viewer feature disabled — skip parsing these from initial load
+        setAllPPTs([]);
+        setAllPDFs([]);
+        setAllDocs([]);
         const arr = Array.isArray(d?.messages) ? d.messages : [];
         const conv = arr.map((m: HistoryMessage, idx: number) => {
           const role = (m.role || "").toLowerCase();
@@ -930,6 +787,16 @@ export default function Agents() {
     if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
   };
 
+  const handleDocumentOpen = (url: string, name: string, type: 'spreadsheet' | 'pdf' | 'doc' | 'ppt') => {
+    if (type === 'spreadsheet') {
+      handleSpreadsheetOpen(url, name);
+    } else {
+      setCurrentExternalDoc({ url, title: name, type });
+      setViewMode(type as any); // use the same viewMode values to handle tabs nicely
+      if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
+    }
+  };
+
   // Handle key press (Enter to send)
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputMessage.trim()) {
@@ -939,23 +806,19 @@ export default function Agents() {
 
   const isComingSoon = currentAgentKey !== "cso" && currentAgentKey !== "cco";
 
-  // Determine which viewer is currently active to ensure expansion logic matches rendered content
+  // Determine which viewer is currently active
   const activeViewer =
     (viewMode === 'spreadsheet' && currentSpreadsheet) ? 'spreadsheet' :
-      (viewMode === 'ppt' && currentPPT) ? 'ppt' :
-        (viewMode === 'pdf' && currentPDF) ? 'pdf' :
-          (viewMode === 'doc' && currentDoc) ? 'doc' :
+      (viewMode === 'pdf' && currentExternalDoc?.type === 'pdf') ? 'pdf' :
+        (viewMode === 'doc' && currentExternalDoc?.type === 'doc') ? 'doc' :
+          (viewMode === 'ppt' && currentExternalDoc?.type === 'ppt') ? 'ppt' :
             currentSpreadsheet ? 'spreadsheet' :
-              currentPPT ? 'ppt' :
-                currentPDF ? 'pdf' :
-                  currentDoc ? 'doc' :
-                    null;
+              currentExternalDoc ? currentExternalDoc.type :
+                null;
 
   const isExpandedView = isRightSidebarOpen && (
     (activeViewer === 'spreadsheet' && isSpreadsheetLargeView) ||
-    (activeViewer === 'ppt' && isPPTLargeView) ||
-    (activeViewer === 'pdf' && isPDFLargeView) ||
-    (activeViewer === 'doc' && isDocLargeView)
+    ((activeViewer === 'pdf' || activeViewer === 'doc' || activeViewer === 'ppt') && isExternalDocLargeView)
   );
 
   return (
@@ -1046,96 +909,14 @@ export default function Agents() {
                       const r = await api.fetch(`api/v1/conversations/history/${chat.projectId}`);
                       const d = await r.json();
                       setConversationId(d?.conversation_id ?? null);
-                      if (Array.isArray(d?.presentations) && d.presentations.length > 0) {
-                        const pptsData = d.presentations.map((p: any) => ({
-                          title: p.title,
-                          slides: p.slides.map((s: any) => ({
-                            title: s.title,
-                            content: s.content,
-                            slide_type: s.slide_type
-                          }))
-                        }));
-                        setAllPPTs(pptsData);
-                        setActivePPTIndex(pptsData.length - 1);
-                        if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-                        setViewMode('ppt');
-                      } else {
-                        setAllPPTs([]);
-                        setActivePPTIndex(0);
-                      }
-                      try {
-                        const pdfsArr = Array.isArray(d?.generated_pdfs) ? d.generated_pdfs :
-                          (Array.isArray(d?.strategy_briefs) ? d.strategy_briefs : []);
-
-                        if (pdfsArr.length > 0) {
-                          const pdfsData = pdfsArr.map((doc: any) => ({
-                            title: doc.title || "Untitled Brief",
-                            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                              title: s.title || "Untitled Section",
-                              content: s.content || "",
-                              section_type: s.section_type || "text"
-                            })) : []
-                          }));
-                          setAllPDFs(pdfsData);
-                          setActivePDFIndex(pdfsData.length - 1);
-                          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-                          if (!d?.presentations || d.presentations.length === 0) {
-                            setViewMode('pdf');
-                          }
-                        } else {
-                          setAllPDFs([]);
-                          setActivePDFIndex(0);
-                        }
-                      } catch (e) {
-                        console.error("Failed to parse PDF history", e);
-                        setAllPDFs([]);
-                        setActivePDFIndex(0);
-                      }
-
-                      try {
-                        const doclist = Array.isArray(d?.generated_word_docs) ? d.generated_word_docs : [];
-                        if (doclist.length > 0) {
-                          setAllDocs(doclist.map((doc: any) => ({
-                            title: doc.title || "Untitled Document",
-                            sections: Array.isArray(doc.sections) ? doc.sections.map((s: any) => ({
-                              title: s.title || "Untitled Section",
-                              content: s.content || "",
-                              section_type: s.section_type || "text"
-                            })) : []
-                          })));
-                          setActiveDocIndex(doclist.length - 1);
-                          if (!isRightSidebarOpen) setIsRightSidebarOpen(true);
-
-                          // If no PPT/PDF, switch view to DOC
-                          const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                          const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                            (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-
-                          if (!hasPPT && !hasPDF) {
-                            setViewMode('doc');
-                          }
-                        } else {
-                          setAllDocs([]);
-                          setActiveDocIndex(0);
-                        }
-                      } catch (e) {
-                        console.error("Failed to parse Word Doc history", e);
-                        setAllDocs([]);
-                        setActiveDocIndex(0);
-                      }
-
-                      // Automatically close sidebar if no documents are present in this chat
-                      const hasPPT = Array.isArray(d?.presentations) && d.presentations.length > 0;
-                      const hasPDF = (Array.isArray(d?.generated_pdfs) && d.generated_pdfs.length > 0) ||
-                        (Array.isArray(d?.strategy_briefs) && d.strategy_briefs.length > 0);
-                      const hasDoc = Array.isArray(d?.generated_word_docs) && d.generated_word_docs.length > 0;
-
-                      if (!hasPPT && !hasPDF && !hasDoc) {
-                        setIsRightSidebarOpen(false);
-                      } else {
-                        // Ensure it's open if we have content
-                        setIsRightSidebarOpen(true);
-                      }
+                      // PPT/PDF/DOC viewer feature disabled — skip parsing from chat history
+                      setAllPPTs([]);
+                      setActivePPTIndex(0);
+                      setAllPDFs([]);
+                      setActivePDFIndex(0);
+                      setAllDocs([]);
+                      setActiveDocIndex(0);
+                      setIsRightSidebarOpen(false);
                       const arr = Array.isArray(d?.messages) ? d.messages : [];
                       const conv = arr.map((m: HistoryMessage, idx: number) => ({
                         id: m.id || m.message_id || (m as any).msg_id || `hist-${Date.now()}-${idx}`,
@@ -1363,7 +1144,7 @@ export default function Agents() {
                           isLoading={showTyping}
                           isStreaming={isStreamingMessage}
                           messageId={message.id}
-                          onSpreadsheetOpen={handleSpreadsheetOpen}
+                          onDocumentOpen={handleDocumentOpen}
                         />
                       </div>
                     </div>
@@ -1606,7 +1387,7 @@ export default function Agents() {
           isRightSidebarOpen
             ? isExpandedView
               ? "flex-1 border-l"
-              : (currentPPT || currentPDF || currentDoc || currentSpreadsheet) ? "w-[400px] lg:w-[600px] flex-shrink-0 border-l" : "w-[300px] lg:w-[400px] flex-shrink-0 border-l"
+              : (currentSpreadsheet || currentExternalDoc) ? "w-[400px] lg:w-[600px] flex-shrink-0 border-l" : "w-[300px] lg:w-[400px] flex-shrink-0 border-l"
             : "w-0 overflow-hidden opacity-0"
         )}
       >
@@ -1615,55 +1396,57 @@ export default function Agents() {
             <h2 className="font-semibold text-lg">
               {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : viewMode === 'doc' ? "Document" : viewMode === 'spreadsheet' ? "Spreadsheet" : "Context"}
             </h2>
-            {(currentPPT || currentPDF || currentDoc || currentSpreadsheet) && (
+            {/* Dynamic tabs based on active documents */}
+            {currentExternalDoc && currentExternalDoc.type === 'ppt' && (
               <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
-                {currentPPT && (
-                  <Button
-                    variant={viewMode === 'ppt' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 px-2 text-xs gap-1"
-                    onClick={() => setViewMode('ppt')}
-                  >
-                    <Presentation className="h-3 w-3" />
-                    PPT
-                  </Button>
-                )}
-                {currentPPT && (currentPDF || currentDoc || currentSpreadsheet) && <div className="w-[1px] h-3 bg-border mx-1" />}
-                {currentPDF && (
-                  <Button
-                    variant={viewMode === 'pdf' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 px-2 text-xs gap-1"
-                    onClick={() => setViewMode('pdf')}
-                  >
-                    <FileText className="h-3 w-3" />
-                    PDF
-                  </Button>
-                )}
-                {(currentPPT || currentPDF) && (currentDoc || currentSpreadsheet) && <div className="w-[1px] h-3 bg-border mx-1" />}
-                {currentDoc && (
-                  <Button
-                    variant={viewMode === 'doc' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 px-2 text-xs gap-1"
-                    onClick={() => setViewMode('doc')}
-                  >
-                    <FileText className="h-3 w-3 text-blue-500" />
-                    Doc
-                  </Button>
-                )}
-                {(currentPPT || currentPDF || currentDoc) && currentSpreadsheet && <div className="w-[1px] h-3 bg-border mx-1" />}
-                {currentSpreadsheet && (
-                  <Button
-                    variant={viewMode === 'spreadsheet' ? "secondary" : "ghost"}
-                    size="sm"
-                    className="h-7 px-2 text-xs gap-1"
-                    onClick={() => setViewMode('spreadsheet')}
-                  >
-                    <BarChart3 className="h-3 w-3 text-emerald-500" />
-                    Sheet
-                  </Button>
-                )}
+                <Button
+                  variant={viewMode === 'ppt' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('ppt')}
+                >
+                  <Presentation className="h-3 w-3 text-orange-600" />
+                  PPT
+                </Button>
+              </div>
+            )}
+            {currentExternalDoc && currentExternalDoc.type === 'pdf' && (
+              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'pdf' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('pdf')}
+                >
+                  <FileText className="h-3 w-3 text-red-600" />
+                  PDF
+                </Button>
+              </div>
+            )}
+            {currentExternalDoc && currentExternalDoc.type === 'doc' && (
+              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'doc' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('doc')}
+                >
+                  <FileText className="h-3 w-3 text-blue-500" />
+                  Doc
+                </Button>
+              </div>
+            )}
+            {currentSpreadsheet && (
+              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'spreadsheet' ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setViewMode('spreadsheet')}
+                >
+                  <BarChart3 className="h-3 w-3 text-emerald-500" />
+                  Sheet
+                </Button>
               </div>
             )}
 
@@ -1674,11 +1457,11 @@ export default function Agents() {
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : viewMode === 'pdf' ? activePDFIndex === 0 : viewMode === 'spreadsheet' ? 0 : activeDocIndex === 0}
+                  disabled={viewMode === 'ppt' ? activePPTIndex === 0 : viewMode === 'pdf' ? activePDFIndex === 0 : viewMode === 'spreadsheet' as any ? false : activeDocIndex === 0}
                   onClick={() => {
                     if (viewMode === 'ppt') setActivePPTIndex(prev => Math.max(0, prev - 1));
                     else if (viewMode === 'pdf') setActivePDFIndex(prev => Math.max(0, prev - 1));
-                    else if (viewMode === 'spreadsheet') return;
+                    else if (viewMode as any === 'spreadsheet') return;
                     else setActiveDocIndex(prev => Math.max(0, prev - 1));
                   }}
                 >
@@ -1725,47 +1508,81 @@ export default function Agents() {
               isLargeView={isSpreadsheetLargeView}
               onToggleLargeView={() => setIsSpreadsheetLargeView(!isSpreadsheetLargeView)}
             />
-          ) : viewMode === 'ppt' && currentPPT ? (
-            <PPTViewer
-              ppt={currentPPT}
-              isLargeView={isPPTLargeView}
-              onToggleLargeView={() => setIsPPTLargeView(!isPPTLargeView)}
-            />
-          ) : viewMode === 'pdf' && currentPDF ? (
-            <PDFViewer
-              pdf={currentPDF}
-              isLargeView={isPDFLargeView}
-              onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
-            />
-          ) : viewMode === 'doc' && currentDoc ? (
-            <DocViewer
-              doc={currentDoc}
-              isLargeView={isDocLargeView}
-              onToggleLargeView={() => setIsDocLargeView(!isDocLargeView)}
-            />
+          ) : currentExternalDoc && viewMode === currentExternalDoc.type ? (
+            <div className="flex flex-col h-full bg-background overflow-hidden relative">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/50 backdrop-blur-sm flex-shrink-0 z-10 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "h-10 w-10 rounded-xl flex items-center justify-center border shadow-inner",
+                    currentExternalDoc.type === 'pdf' ? "bg-red-500/10 border-red-500/20" :
+                      currentExternalDoc.type === 'doc' ? "bg-blue-500/10 border-blue-500/20" :
+                        "bg-orange-500/10 border-orange-500/20"
+                  )}>
+                    {currentExternalDoc.type === 'pdf' ? <FileText className="h-6 w-6 text-red-600" /> :
+                      currentExternalDoc.type === 'doc' ? <FileText className="h-6 w-6 text-blue-600" /> :
+                        <Presentation className="h-6 w-6 text-orange-600" />}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold truncate max-w-[250px] text-foreground" title={currentExternalDoc.title}>{currentExternalDoc.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono uppercase font-bold tracking-tighter">
+                        {currentExternalDoc.type === 'pdf' ? "PDF FILE" : currentExternalDoc.type === 'doc' ? "WORD DOC" : "POWERPOINT"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = currentExternalDoc.url;
+                      a.download = currentExternalDoc.title;
+                      a.style.display = "none";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    title="Download File"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Separator orientation="vertical" className="h-4 mx-1" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg"
+                    onClick={() => setIsExternalDocLargeView(!isExternalDocLargeView)}
+                    title={isExternalDocLargeView ? "Exit Full View" : "Full View"}
+                  >
+                    {isExternalDocLargeView ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* View Area */}
+              <div className="flex-1 w-full bg-muted/20 relative">
+                {currentExternalDoc.type === 'pdf' ? (
+                  <iframe
+                    src={currentExternalDoc.url}
+                    className="w-full h-full border-none"
+                    title={currentExternalDoc.title}
+                  />
+                ) : currentExternalDoc.type === 'doc' ? (
+                  <LocalWordExternalViewer url={currentExternalDoc.url} title={currentExternalDoc.title} />
+                ) : (
+                  <LocalPptExternalViewer url={currentExternalDoc.url} title={currentExternalDoc.title} />
+                )}
+              </div>
+            </div>
           ) : currentSpreadsheet ? (
             <SpreadsheetViewer
               spreadsheet={currentSpreadsheet}
               isLargeView={isSpreadsheetLargeView}
               onToggleLargeView={() => setIsSpreadsheetLargeView(!isSpreadsheetLargeView)}
-            />
-          ) : currentPPT ? (
-            <PPTViewer
-              ppt={currentPPT}
-              isLargeView={isPPTLargeView}
-              onToggleLargeView={() => setIsPPTLargeView(!isPPTLargeView)}
-            />
-          ) : currentPDF ? (
-            <PDFViewer
-              pdf={currentPDF}
-              isLargeView={isPDFLargeView}
-              onToggleLargeView={() => setIsPDFLargeView(!isPDFLargeView)}
-            />
-          ) : currentDoc ? (
-            <DocViewer
-              doc={currentDoc}
-              isLargeView={isDocLargeView}
-              onToggleLargeView={() => setIsDocLargeView(!isDocLargeView)}
             />
           ) : (
             <>
