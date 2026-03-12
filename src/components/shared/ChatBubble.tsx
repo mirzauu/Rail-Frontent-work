@@ -145,10 +145,11 @@ const ToolCallItem = ({ toolCall }: { toolCall: ToolCall }) => {
   const isPDF = toolName.includes("pdf");
   const isDoc = toolName.includes("word") || toolName.includes("doc");
   const isConsultAgent = toolName.startsWith("consult_") || toolName.startsWith("consultant_");
+  const isTodo = toolName === "create_todo" || toolName === "update_todo_status" || toolName === "add_todo_note";
   const isCallEvent = toolCall.event_type === "ToolCallEventType.CALL";
 
-  // Hide PPT, PDF, and DOC tool calls from chat display
-  if (isPPT || isPDF || isDoc) return null;
+  // Hide PPT, PDF, DOC, and Todo tool calls from chat display
+  if (isPPT || isPDF || isDoc || isTodo) return null;
   const isCompleted = !isCallEvent && (toolCall.event_type === "ToolCallEventType.RESULT" || (toolCall as any).status === "completed" || !!toolCall.tool_response);
 
   const [isOpen, setIsOpen] = useState(!isCompleted);
@@ -465,6 +466,13 @@ export const ChatBubble = React.memo(({ content, role, avatar, name, timestamp, 
   const isUser = role === "user";
   const [isCopied, setIsCopied] = useState(false);
   const [isThumbedUp, setIsThumbedUp] = useState(false);
+
+  const todoCalls = React.useMemo(() => {
+    return (tool_calls || []).filter((tc) => {
+      const name = (tc.tool_name || "").toLowerCase().trim();
+      return name === "create_todo" || name === "update_todo_status" || name === "add_todo_note";
+    });
+  }, [tool_calls]);
 
   const handleCopy = () => {
     if (!content) return;

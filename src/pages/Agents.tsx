@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ElementType } from "react";
 import { useParams } from "react-router-dom";
@@ -59,6 +59,7 @@ import { DocViewer, type Doc } from "@/components/shared/DocViewer";
 import { SpreadsheetViewer, type Spreadsheet } from "@/components/shared/SpreadsheetViewer";
 import { LocalWordExternalViewer } from "@/components/shared/LocalWordExternalViewer";
 import { LocalPptExternalViewer } from "@/components/shared/LocalPptExternalViewer";
+import { TodoListWidget } from "@/components/shared/TodoListWidget";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
 import {
@@ -416,6 +417,14 @@ export default function Agents() {
   const [inputMessage, setInputMessage] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+    }
+  }, [inputMessage]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -512,6 +521,21 @@ export default function Agents() {
 
   // Get the conversation to display (initial + new messages)
   const displayMessages = messages;
+
+  const allTodoCalls = useMemo(() => {
+    const tools: ToolCall[] = [];
+    displayMessages.forEach(msg => {
+      if (msg.tool_calls) {
+        msg.tool_calls.forEach(tc => {
+          const name = (tc.tool_name || "").toLowerCase().trim();
+          if (name === "create_todo" || name === "update_todo_status" || name === "add_todo_note") {
+            tools.push(tc);
+          }
+        });
+      }
+    });
+    return tools;
+  }, [displayMessages]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -798,8 +822,9 @@ export default function Agents() {
   };
 
   // Handle key press (Enter to send)
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputMessage.trim()) {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && inputMessage.trim()) {
+      e.preventDefault();
       handleSendMessage();
     }
   };
@@ -1155,8 +1180,15 @@ export default function Agents() {
           </div>
         </ScrollArea>
 
+        {/* Floating Todo Widget */}
+        <div className="absolute bottom-[100px] w-full px-4 z-20 pointer-events-none flex justify-center pb-4 transition-all">
+          <div className="w-full max-w-[95%] pointer-events-auto">
+            <TodoListWidget toolCalls={allTodoCalls} />
+          </div>
+        </div>
+
         {/* Input Area */}
-        <div className="absolute bottom-0 w-full p-4 bg-background/20 backdrop-blur-lg z-10">
+        <div className="absolute bottom-0 w-full p-4 bg-background/20 backdrop-blur-lg z-30">
           <div className="max-w-[95%] mx-auto">
             <div className="bg-[#f8fafc]/80 dark:bg-muted/50 border border-border rounded-xl overflow-hidden shadow-sm">
               {/* Input Field */}
@@ -1176,13 +1208,15 @@ export default function Agents() {
                     ))}
                   </div>
                 )}
-                <input
-                  type="text"
+                <textarea
+                  ref={textareaRef}
                   placeholder="What you thinking"
-                  className="w-full bg-transparent text-foreground placeholder-muted-foreground text-sm outline-none"
+                  className="w-full bg-transparent text-foreground placeholder-muted-foreground text-sm outline-none resize-none overflow-y-auto"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={handleKeyPress}
+                  rows={1}
+                  style={{ minHeight: '24px', maxHeight: '150px' }}
                 />
               </div>
 

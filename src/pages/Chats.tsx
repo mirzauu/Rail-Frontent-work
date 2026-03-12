@@ -58,6 +58,14 @@ export default function Chats() {
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+    }
+  }, [input]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -256,7 +264,8 @@ export default function Chats() {
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
-                  <Input
+                  <textarea
+                    ref={textareaRef}
                     placeholder="Type your message..."
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -266,7 +275,8 @@ export default function Chats() {
                         handleSendMessage();
                       }
                     }}
-                    className="flex-1"
+                    className="flex text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex-1 min-h-[40px] max-h-[150px] resize-none overflow-y-auto bg-transparent border border-input rounded-md px-3 py-2"
+                    rows={1}
                   />
                   <Button onClick={handleSendMessage} disabled={isStreaming || (!input.trim() && attachments.length === 0)}>
                     <Send className="h-4 w-4" />
