@@ -57,8 +57,6 @@ import { PPTViewer, type PPT } from "@/components/shared/PPTViewer";
 import { PDFViewer, type PDF } from "@/components/shared/PDFViewer";
 import { DocViewer, type Doc } from "@/components/shared/DocViewer";
 import { SpreadsheetViewer, type Spreadsheet } from "@/components/shared/SpreadsheetViewer";
-import { LocalWordExternalViewer } from "@/components/shared/LocalWordExternalViewer";
-import { LocalPptExternalViewer } from "@/components/shared/LocalPptExternalViewer";
 import { TodoListWidget } from "@/components/shared/TodoListWidget";
 import { useQuery } from "@tanstack/react-query";
 import { api, type StreamDelta } from "@/lib/api";
@@ -457,10 +455,10 @@ export default function Agents() {
   const [currentSpreadsheet, setCurrentSpreadsheet] = useState<Spreadsheet | null>(null);
   const [isSpreadsheetLargeView, setIsSpreadsheetLargeView] = useState(false);
 
-  const [currentExternalDoc, setCurrentExternalDoc] = useState<{ url: string, title: string, type: 'pdf' | 'doc' | 'ppt' } | null>(null);
+  const [currentExternalDoc, setCurrentExternalDoc] = useState<{ url: string, title: string, type: 'pdf' } | null>(null);
   const [isExternalDocLargeView, setIsExternalDocLargeView] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc' | 'spreadsheet'>('ppt');
+  const [viewMode, setViewMode] = useState<'ppt' | 'pdf' | 'doc' | 'spreadsheet'>('pdf');
 
   // PPT/PDF/DOC viewer feature disabled — no longer build documents from streaming tool_calls
   useEffect(() => {
@@ -814,6 +812,14 @@ export default function Agents() {
   const handleDocumentOpen = (url: string, name: string, type: 'spreadsheet' | 'pdf' | 'doc' | 'ppt') => {
     if (type === 'spreadsheet') {
       handleSpreadsheetOpen(url, name);
+    } else if (type === 'doc' || type === 'ppt') {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } else {
       setCurrentExternalDoc({ url, title: name, type });
       setViewMode(type as any); // use the same viewMode values to handle tabs nicely
@@ -1430,20 +1436,6 @@ export default function Agents() {
             <h2 className="font-semibold text-lg">
               {viewMode === 'ppt' ? "Presentation" : viewMode === 'pdf' ? "Strategy Brief" : viewMode === 'doc' ? "Document" : viewMode === 'spreadsheet' ? "Spreadsheet" : "Context"}
             </h2>
-            {/* Dynamic tabs based on active documents */}
-            {currentExternalDoc && currentExternalDoc.type === 'ppt' && (
-              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
-                <Button
-                  variant={viewMode === 'ppt' ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setViewMode('ppt')}
-                >
-                  <Presentation className="h-3 w-3 text-orange-600" />
-                  PPT
-                </Button>
-              </div>
-            )}
             {currentExternalDoc && currentExternalDoc.type === 'pdf' && (
               <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
                 <Button
@@ -1454,19 +1446,6 @@ export default function Agents() {
                 >
                   <FileText className="h-3 w-3 text-red-600" />
                   PDF
-                </Button>
-              </div>
-            )}
-            {currentExternalDoc && currentExternalDoc.type === 'doc' && (
-              <div className="flex items-center ml-4 bg-muted/50 rounded-lg p-1">
-                <Button
-                  variant={viewMode === 'doc' ? "secondary" : "ghost"}
-                  size="sm"
-                  className="h-7 px-2 text-xs gap-1"
-                  onClick={() => setViewMode('doc')}
-                >
-                  <FileText className="h-3 w-3 text-blue-500" />
-                  Doc
                 </Button>
               </div>
             )}
@@ -1599,17 +1578,11 @@ export default function Agents() {
 
               {/* View Area */}
               <div className="flex-1 w-full bg-muted/20 relative">
-                {currentExternalDoc.type === 'pdf' ? (
-                  <iframe
-                    src={currentExternalDoc.url}
-                    className="w-full h-full border-none"
-                    title={currentExternalDoc.title}
-                  />
-                ) : currentExternalDoc.type === 'doc' ? (
-                  <LocalWordExternalViewer url={currentExternalDoc.url} title={currentExternalDoc.title} />
-                ) : (
-                  <LocalPptExternalViewer url={currentExternalDoc.url} title={currentExternalDoc.title} />
-                )}
+                <iframe
+                  src={currentExternalDoc.url}
+                  className="w-full h-full border-none"
+                  title={currentExternalDoc.title}
+                />
               </div>
             </div>
           ) : currentSpreadsheet ? (
